@@ -8,6 +8,9 @@ computed by the same code path the CLI uses, so the two can never disagree.
 from __future__ import annotations
 
 import io
+import os
+import tempfile
+import uuid
 from decimal import Decimal
 from pathlib import Path
 
@@ -29,7 +32,25 @@ from app.reports.restock import calculate_restock_budget, render_restock_markdow
 from app.reports.whatsapp import build_whatsapp_draft
 from app.schema import Account
 
-DB_PATH = "data/bookworths.db"
+def _db_path() -> str:
+    """Where this visitor's learned counterparty memory lives.
+
+    Locally that is a single shared file, which is what you want: the app gets
+    smarter every run. Deployed, every visitor gets their own file keyed to
+    their session, so one person's confirmed suppliers never leak into another
+    person's categorisations. Sessions are ephemeral by design — a deployed
+    demo should not accumulate strangers' financial relationships on disk.
+    """
+    if not os.getenv("BOOKWORTHS_MULTIUSER"):
+        return "data/bookworths.db"
+    if "db_path" not in st.session_state:
+        st.session_state["db_path"] = (
+            f"{tempfile.gettempdir()}/bookworths-{uuid.uuid4().hex[:12]}.db"
+        )
+    return st.session_state["db_path"]
+
+
+DB_PATH = _db_path()
 
 #: The one-word answers a seller can give a flagged transaction, and where each
 #: one files it. Mirrors the WhatsApp reply key so both channels agree.

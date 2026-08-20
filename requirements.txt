@@ -15,7 +15,7 @@ streamlit>=1.40      # needs the `width=` API; older versions use use_container_
 # --- Layer 3 classifier backends (optional) --------------------------------
 # With neither installed/configured, the offline heuristic backend runs and the
 # full pipeline still works end to end.
-anthropic>=0.40      # Claude structured outputs (recommended)
+# anthropic>=0.40    # uncomment for the Claude backend (needs ANTHROPIC_API_KEY)
 # openai>=1.40       # uncomment to use the OpenAI backend instead
 
 # --- Development (optional) ------------------------------------------------

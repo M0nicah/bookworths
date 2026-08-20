@@ -1,0 +1,19 @@
+# Theme tokens mirror app/reports/theme.py so Streamlit's own chrome — file
+# uploader, dataframes, widgets — matches the Pesabook palette instead of
+# falling back to the default blue/white.
+[theme]
+base = "light"
+primaryColor = "#1F7A4D"
+backgroundColor = "#F4F0E6"
+secondaryBackgroundColor = "#FFFDF6"
+textColor = "#1B2A21"
+font = "sans serif"
+
+[server]
+# Statements can be large; the default 200MB cap is more than enough and
+# keeping it explicit documents the limit.
+maxUploadSize = 50
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
