@@ -1,0 +1,23 @@
+# --- Core (required) -------------------------------------------------------
+pydantic>=2.0
+pandas>=2.0
+
+# --- File format support ---------------------------------------------------
+# Installed by default so any statement export "just works".
+openpyxl>=3.1        # .xlsx
+odfpy>=1.4           # .ods  (LibreOffice / Google Sheets exports)
+xlrd>=2.0            # .xls  (legacy Excel)
+pdfplumber>=0.11     # .pdf  (including password-protected Safaricom PDFs)
+
+# --- Graphical interface ---------------------------------------------------
+streamlit>=1.40      # needs the `width=` API; older versions use use_container_width
+
+# --- Layer 3 classifier backends (optional) --------------------------------
+# With neither installed/configured, the offline heuristic backend runs and the
+# full pipeline still works end to end.
+anthropic>=0.40      # Claude structured outputs (recommended)
+# openai>=1.40       # uncomment to use the OpenAI backend instead
+
+# --- Development (optional) ------------------------------------------------
+# pytest>=8.0        # the suite also runs standalone: python test_bookworths.py
+# reportlab>=4.0     # only needed to generate PDF fixtures for testing

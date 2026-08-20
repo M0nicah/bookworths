@@ -1,0 +1,22 @@
+[project]
+name = "bookworths"
+version = "1.0.0"
+description = "Clear books, real value — M-Pesa reconciliation and profit intelligence for Kenyan IG sellers"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.0", "pandas>=2.0"]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.40"]
+pdf = ["pdfplumber>=0.11"]
+
+[project.scripts]
+bookworths = "main:main"
+
+[tool.setuptools]
+packages = ["app", "app.engine", "app.ingest", "app.reports"]
+py-modules = ["main"]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]
