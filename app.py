@@ -199,6 +199,58 @@ st.html(
                     font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
                     font-weight: 600; }}
 
+  /* Landing screen ---------------------------------------------------- */
+  @keyframes bwFadeUp {{
+    from {{ opacity: 0; transform: translateY(14px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+  }}
+  @keyframes bwGrow {{ from {{ transform: scaleY(.05); }} to {{ transform: scaleY(1); }} }}
+  @keyframes bwDrift {{
+    0%, 100% {{ transform: translateY(0); }}
+    50%      {{ transform: translateY(-5px); }}
+  }}
+
+  .bw-land {{ display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px;
+              align-items: center; margin: 10px 0 26px; }}
+  @media (max-width: 1100px) {{ .bw-land {{ grid-template-columns: 1fr; }} }}
+
+  .bw-land-lead {{ font-family: var(--serif); font-size: 30px; line-height: 1.25;
+                   color: var(--ink); margin: 0 0 12px;
+                   animation: bwFadeUp .55s {theme.EASE} both; }}
+  .bw-land-sub {{ font-size: 15px; color: var(--ink-2); line-height: 1.6;
+                  max-width: 46ch; margin: 0 0 22px;
+                  animation: bwFadeUp .55s {theme.EASE} .08s both; }}
+
+  .bw-steps {{ display: flex; flex-direction: column; gap: 12px; }}
+  .bw-step {{ display: flex; gap: 13px; align-items: flex-start;
+              animation: bwFadeUp .5s {theme.EASE} both; }}
+  .bw-step:nth-child(1) {{ animation-delay: .16s; }}
+  .bw-step:nth-child(2) {{ animation-delay: .26s; }}
+  .bw-step:nth-child(3) {{ animation-delay: .36s; }}
+  .bw-step .n {{ width: 25px; height: 25px; flex: none; border-radius: 999px;
+                 background: var(--in); color: {theme.PAGE};
+                 font-family: var(--mono); font-size: 12px; font-weight: 700;
+                 display: flex; align-items: center; justify-content: center; }}
+  .bw-step .t {{ font-size: 14px; font-weight: 600; color: var(--ink); }}
+  .bw-step .d {{ font-size: 13px; color: var(--ink-2); margin-top: 1px; }}
+
+  /* A quiet stand-in for the chart that appears after analysis. */
+  .bw-preview {{ background: var(--card); border: 1px solid var(--border);
+                 border-radius: {theme.RADIUS_PANEL}; padding: 22px 24px;
+                 animation: bwFadeUp .6s {theme.EASE} .2s both; }}
+  .bw-preview .cap {{ font-size: 11px; letter-spacing: .08em; font-weight: 600;
+                      text-transform: uppercase; color: var(--label);
+                      margin-bottom: 16px; }}
+  .bw-bars {{ display: flex; align-items: flex-end; gap: 9px; height: 132px; }}
+  .bw-bars i {{ flex: 1; border-radius: 5px 5px 0 0; display: block;
+                transform-origin: bottom;
+                animation: bwGrow .75s {theme.EASE} both,
+                           bwDrift 4.5s ease-in-out infinite; }}
+  .bw-legend {{ display: flex; gap: 18px; margin-top: 16px; font-size: 12px;
+                color: var(--ink-2); }}
+  .bw-legend span {{ display: flex; align-items: center; gap: 7px; }}
+  .bw-legend i {{ width: 10px; height: 10px; border-radius: 3px; display: block; }}
+
   .bw-sec {{ font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
              color: var(--label); font-weight: 600; margin: 6px 0 10px; }}
 
@@ -572,6 +624,74 @@ st.html(
       <div class="mode">{mode} mode &middot; all amounts in KES</div>
     </div>"""
 )
+
+# Before anything has been analysed the page is otherwise empty, so explain
+# what the app does and show a stand-in for the result.
+if "result" not in st.session_state and "household" not in st.session_state:
+    if mode == "Business":
+        lead = "See what your shop actually earned."
+        sub = ("Bookworths reads your M-Pesa statement and separates business "
+               "money from your own. It finds the stock, the riders, the "
+               "packaging and the Safaricom fees nobody counts &mdash; then tells "
+               "you what is genuinely left.")
+        steps = [
+            ("Reads the statement", "CSV, XLSX, ODS or PDF, straight from M-Pesa."),
+            ("Sorts every shilling", "Sales, stock, delivery, fees, and what you took out."),
+            ("Shows the real profit", "Plus a safe budget for your next stock run."),
+        ]
+        caption = "Sales against costs, month by month"
+        bars = [
+            (62, theme.MONEY_IN), (38, theme.MONEY_OUT), (78, theme.MONEY_IN),
+            (46, theme.MONEY_OUT), (54, theme.MONEY_IN), (33, theme.MONEY_OUT),
+            (88, theme.MONEY_IN), (51, theme.MONEY_OUT),
+        ]
+        legend = [("Money in", theme.MONEY_IN), ("Money out", theme.MONEY_OUT)]
+    else:
+        lead = "See where your money actually goes."
+        sub = ("Bookworths reads your M-Pesa statement and groups every shilling "
+               "into the things you actually spend on &mdash; food, rent, transport, "
+               "loans, savings &mdash; then shows whether the month added up.")
+        steps = [
+            ("Reads the statement", "CSV, XLSX, ODS or PDF, straight from M-Pesa."),
+            ("Groups your spending", "Essentials against everything else."),
+            ("Checks your position", "Savings rate, debt load, and how long your cash lasts."),
+        ]
+        caption = "Spending by category"
+        bars = [
+            (92, theme.MONEY_OUT), (71, theme.STOCK), (58, theme.BILLS),
+            (44, theme.DELIVERY), (36, theme.WITHDRAWAL), (28, theme.MONEY_IN),
+            (21, theme.NEUTRAL), (14, theme.NEUTRAL),
+        ]
+        legend = [("Essentials", theme.MONEY_OUT), ("Everything else", theme.STOCK)]
+
+    steps_html = "".join(
+        f'<div class="bw-step"><div class="n">{i}</div>'
+        f'<div><div class="t">{title}</div><div class="d">{detail}</div></div></div>'
+        for i, (title, detail) in enumerate(steps, start=1)
+    )
+    bars_html = "".join(
+        f'<i style="height:{height}%;background:{colour};'
+        f'animation-delay:{0.25 + n * 0.06:.2f}s,{1.2 + n * 0.18:.2f}s"></i>'
+        for n, (height, colour) in enumerate(bars)
+    )
+    legend_html = "".join(
+        f'<span><i style="background:{colour}"></i>{label}</span>'
+        for label, colour in legend
+    )
+    st.html(
+        f"""<div class="bw-land">
+          <div>
+            <div class="bw-land-lead">{lead}</div>
+            <div class="bw-land-sub">{sub}</div>
+            <div class="bw-steps">{steps_html}</div>
+          </div>
+          <div class="bw-preview">
+            <div class="cap">{caption}</div>
+            <div class="bw-bars">{bars_html}</div>
+            <div class="bw-legend">{legend_html}</div>
+          </div>
+        </div>"""
+    )
 
 ready = source == "Built-in demo" or upload is not None
 if st.button(f"Analyse {mode.lower()} statement", type="primary", disabled=not ready):
