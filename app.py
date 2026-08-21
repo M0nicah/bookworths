@@ -27,6 +27,7 @@ from app.reports.profit_pack import build_profit_pack, kes, render_html, render_
 from app.assets.logo import favicon_svg, logo_svg, watermark_data_uri
 from app.reports import charts, theme
 from app.reports.pdf import personal_report_pdf, profit_pack_pdf
+from app.reports.trends import build_business_trend, build_personal_trend
 from app.reports.people import Counterparty, top_counterparties
 from app.reports.household import build_household_report, render_household_markdown
 from app.reports.personal import build_personal_report, render_personal_markdown
@@ -547,6 +548,54 @@ def txn_table(rows) -> str:
     )
 
 
+def render_trend(trend) -> None:
+    """Month-on-month view. Only called when at least two months exist."""
+    latest, previous = trend.latest, trend.previous
+
+    def delta(field: str) -> str | None:
+        pct = trend.change_pct(field)
+        return None if pct is None else f"{pct:+.1f}% on {previous.label}"
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(f"Money in ({latest.label})", kes(latest.money_in),
+              delta("money_in"))
+    m2.metric("Money out", kes(latest.money_out), delta("money_out"),
+              delta_color="inverse")
+    m3.metric("Net", kes(latest.net), delta("net"))
+    m4.metric("Months covered", f"{len(trend.rows)}")
+
+    section("Money in and out, month by month")
+    st.altair_chart(charts.trend_lines(trend), width="stretch")
+
+    section("Net position each month")
+    st.altair_chart(charts.trend_net_bars(trend), width="stretch")
+
+    if trend.insights:
+        section("What changed")
+        insight_list(trend.insights)
+
+    section("Every month")
+    is_business = trend.mode == "Business"
+    st.dataframe(
+        pd.DataFrame([
+            {
+                "Month": r.label,
+                "Money in": f"{r.money_in:,.0f}",
+                "Money out": f"{r.money_out:,.0f}",
+                "Net": f"{r.net:,.0f}",
+                ("Stock" if is_business else "Essentials"):
+                    f"{(r.cogs if is_business else r.essentials):,.0f}",
+                ("Drawings" if is_business else "Saved"):
+                    f"{(r.drawings if is_business else r.savings):,.0f}",
+                "Fees": f"{r.fees:,.0f}",
+                "Items": r.transactions,
+            }
+            for r in trend.rows
+        ]),
+        width="stretch", hide_index=True,
+    )
+
+
 def insight_list(items) -> None:
     """Render insights as tinted cards rather than a plain bullet list."""
     for text in items:
@@ -873,9 +922,14 @@ if mode == "Personal":
         delta_color="normal" if h.savings_total > 0 else "inverse",
     )
 
-    ptabs = st.tabs(["Overview", "Income", "Spending", "Financial health"])
+    personal_trend = build_personal_trend(h.transactions)
+    ptab_names = ["Overview", "Income", "Spending", "Financial health"]
+    if personal_trend.is_available:
+        ptab_names.insert(1, f"Month by month ({len(personal_trend.rows)})")
+    ptabs = st.tabs(ptab_names)
+    _p = {name: tab for name, tab in zip(ptab_names, ptabs)}
 
-    with ptabs[0]:
+    with _p["Overview"]:
         if surplus:
             st.success(
                 f"You kept {kes(h.net_position)} more than you spent over "
@@ -950,7 +1004,11 @@ if mode == "Personal":
             type="primary",
         )
 
-    with ptabs[1]:
+    if personal_trend.is_available:
+        with _p[f"Month by month ({len(personal_trend.rows)})"]:
+            render_trend(personal_trend)
+
+    with _p["Income"]:
         st.caption(
             "Borrowed money and savings withdrawals are shown separately — they "
             "are cash you can spend, but they are not income you earned."
@@ -983,7 +1041,7 @@ if mode == "Personal":
                 ]), width="stretch", hide_index=True, height=360,
             )
 
-    with ptabs[2]:
+    with _p["Spending"]:
         s1, s2, s3 = st.columns(3)
         s1.metric("Total out", kes(h.total_spending), f"{kes(h.monthly_spending)}/mo")
         s2.metric("Essentials", kes(h.essential_spending), f"{kes(h.monthly_essentials)}/mo")
@@ -1012,7 +1070,7 @@ if mode == "Personal":
                 ]), width="stretch", hide_index=True, height=430,
             )
 
-    with ptabs[3]:
+    with _p["Financial health"]:
         checks = [
             ("Savings rate", f"{h.savings_rate_pct}%", "10–20%+", h.savings_rate_pct >= 10),
             ("Debt repayments", f"{h.debt_ratio_pct}% of income", "under 35%",
@@ -1117,15 +1175,18 @@ _alert_label = (
     f"**Needs your input** `{_pending}`" if _pending else "Needs your input"
 )
 
-tabs = st.tabs(
-    ["Profit Pack", _alert_label,
-     "Restock budget", "My personal finances", "All transactions", "WhatsApp draft"]
-)
+business_trend = build_business_trend(result.transactions)
+tab_names = ["Profit Pack", _alert_label, "Restock budget",
+             "My personal finances", "All transactions", "WhatsApp draft"]
+if business_trend.is_available:
+    tab_names.insert(2, f"Month by month ({len(business_trend.rows)})")
+tabs = st.tabs(tab_names)
+_b = {name: tab for name, tab in zip(tab_names, tabs)}
 
 
 # --- Profit Pack -----------------------------------------------------------
 
-with tabs[0]:
+with _b["Profit Pack"]:
     chart_col, text_col = st.columns([3, 2], gap="medium")
     with chart_col:
         section("Where the revenue went")
@@ -1248,7 +1309,7 @@ with tabs[0]:
 
 # --- exceptions ------------------------------------------------------------
 
-with tabs[1]:
+with _b[_alert_label]:
     exceptions = result.exceptions
     if not exceptions:
         st.html(
@@ -1311,7 +1372,11 @@ with tabs[1]:
 
 # --- restock ---------------------------------------------------------------
 
-with tabs[2]:
+if business_trend.is_available:
+    with _b[f"Month by month ({len(business_trend.rows)})"]:
+        render_trend(business_trend)
+
+with _b["Restock budget"]:
     b1, b2, b3 = st.columns(3)
     b1.metric("Cash in M-Pesa", kes(budget.cash_on_hand))
     b2.metric("Committed", kes(budget.total_commitments))
@@ -1358,7 +1423,7 @@ with tabs[2]:
 
 # --- personal finances -----------------------------------------------------
 
-with tabs[3]:
+with _b["My personal finances"]:
     personal = result.personal_report
     if personal.total_drawings <= 0:
         st.info("No personal spending was identified in this statement.")
@@ -1417,7 +1482,7 @@ with tabs[3]:
 
 # --- ledger ----------------------------------------------------------------
 
-with tabs[4]:
+with _b["All transactions"]:
     section("Recent transactions")
     recent = sorted(result.transactions, key=lambda r: r.transaction.timestamp,
                     reverse=True)[:12]
@@ -1443,7 +1508,7 @@ with tabs[4]:
 
 # --- whatsapp --------------------------------------------------------------
 
-with tabs[5]:
+with _b["WhatsApp draft"]:
     st.caption("Copy this into WhatsApp and send it to the seller.")
     st.code(result.whatsapp_draft, language=None)
     st.download_button(

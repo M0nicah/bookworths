@@ -1199,6 +1199,97 @@ def test_demo_counterparties_are_fictional():
 
 
 
+# --- month-on-month trends -------------------------------------------------
+
+def test_trend_needs_two_months():
+    """A single-month statement must not offer a comparison."""
+    from app.reports.trends import build_business_trend, build_personal_trend
+
+    results = _pack()                      # the demo covers one month
+    assert build_business_trend(results).is_available is False
+    assert build_personal_trend(
+        [r.transaction for r in results]
+    ).is_available is False
+
+
+def test_trend_splits_months_correctly():
+    """Two months of data must produce exactly two rows, in order."""
+    import pandas as pd
+
+    from app.reports.trends import build_personal_trend
+
+    raw = load_mock_statement()
+    later = raw.copy()
+    later["Completion Time"] = later["Completion Time"].str.replace(
+        "2026-07", "2026-08", regex=False
+    )
+    later["Receipt No."] = later["Receipt No."] + "B"
+    combined = pd.concat([raw, later], ignore_index=True)
+
+    trend = build_personal_trend(normalize_statement(combined))
+    assert trend.is_available
+    assert [row.label for row in trend.rows] == ["Jul 2026", "Aug 2026"]
+    assert trend.rows[0].key < trend.rows[1].key
+
+
+def test_trend_totals_reconcile_with_the_whole_period():
+    """Monthly figures must sum to the same totals shown elsewhere."""
+    import pandas as pd
+
+    from app.reports.household import build_household_report
+    from app.reports.trends import build_personal_trend
+
+    raw = load_mock_statement()
+    later = raw.copy()
+    later["Completion Time"] = later["Completion Time"].str.replace(
+        "2026-07", "2026-08", regex=False
+    )
+    later["Receipt No."] = later["Receipt No."] + "B"
+    transactions = normalize_statement(pd.concat([raw, later], ignore_index=True))
+
+    trend = build_personal_trend(transactions)
+    report = build_household_report(transactions)
+    assert sum((r.money_in for r in trend.rows), ZERO) == report.total_income
+
+
+def test_business_trend_keeps_drawings_out_of_costs():
+    """Drawings are equity, exactly as the Profit Pack treats them."""
+    import pandas as pd
+
+    from app.reports.trends import build_business_trend
+
+    raw = load_mock_statement()
+    later = raw.copy()
+    later["Completion Time"] = later["Completion Time"].str.replace(
+        "2026-07", "2026-08", regex=False
+    )
+    later["Receipt No."] = later["Receipt No."] + "B"
+    engine = CategorizationEngine(memory=EntityMemory(_tmp_db()),
+                                  backend=HeuristicBackend())
+    results = engine.classify_all(
+        normalize_statement(pd.concat([raw, later], ignore_index=True))
+    )
+    trend = build_business_trend(results)
+    assert trend.is_available
+    for row in trend.rows:
+        assert row.drawings > ZERO
+        # money_out excludes drawings, so net stays a business figure.
+        assert row.net == row.money_in - row.money_out
+
+
+def test_trend_change_handles_a_zero_base():
+    """A month with no sales must not divide by zero."""
+    from app.reports.trends import MonthRow, Trend
+
+    trend = Trend(rows=[
+        MonthRow(key="2026-07", label="Jul 2026"),
+        MonthRow(key="2026-08", label="Aug 2026", money_in=Decimal("100")),
+    ])
+    assert trend.change_pct("money_in") is None
+    assert trend.change("money_in") == Decimal("100.00")
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 

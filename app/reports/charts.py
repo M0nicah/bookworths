@@ -270,3 +270,79 @@ def profit_waterfall(pack, *, height: int = 330) -> alt.LayerChart:
         y=alt.Y("End:Q"), text="Label:N"
     )
     return (bars + text).properties(height=height).configure_view(strokeWidth=0)
+
+
+def trend_lines(trend, *, height: int = 300) -> alt.LayerChart:
+    """Money in and out across months, with a point on every value.
+
+    Lines rather than bars: the question here is direction over time, and a
+    line answers that at a glance where a grouped bar chart makes the reader
+    do the work.
+    """
+    rows = []
+    for row in trend.rows:
+        rows.append({"Month": row.label, "Series": "Money in",
+                     "Amount": float(row.money_in), "Order": row.key})
+        rows.append({"Month": row.label, "Series": "Money out",
+                     "Amount": float(row.money_out), "Order": row.key})
+    if not rows:
+        return alt.LayerChart()
+    df = pd.DataFrame(rows).sort_values("Order")
+    order = df["Month"].drop_duplicates().tolist()
+
+    colour = alt.Color(
+        "Series:N",
+        scale=alt.Scale(domain=["Money in", "Money out"],
+                        range=[POSITIVE, NEGATIVE]),
+        legend=alt.Legend(title=None, orient="top", labelColor=_LABEL),
+    )
+    base = alt.Chart(df).encode(
+        x=alt.X("Month:N", sort=order, title=None,
+                axis=alt.Axis(labelAngle=-40, labelColor=_LABEL,
+                              grid=False, labelFont=_FONT)),
+        y=alt.Y("Amount:Q", title="KES", axis=_GRID),
+        color=colour,
+    )
+    line = base.mark_line(strokeWidth=2.5, point=False)
+    dots = base.mark_point(size=55, filled=True).encode(
+        tooltip=[
+            alt.Tooltip("Month:N"), alt.Tooltip("Series:N"),
+            alt.Tooltip("Amount:Q", format=",.2f", title="KES"),
+        ]
+    )
+    return (line + dots).properties(height=height).configure_view(strokeWidth=0)
+
+
+def trend_net_bars(trend, *, height: int = 240) -> alt.LayerChart:
+    """Net position per month — the bar that answers "was this month good?"."""
+    rows = [
+        {"Month": r.label, "Net": float(r.net), "Order": r.key,
+         "Sign": "Surplus" if r.net >= 0 else "Shortfall"}
+        for r in trend.rows
+    ]
+    if not rows:
+        return alt.LayerChart()
+    df = pd.DataFrame(rows).sort_values("Order")
+    order = df["Month"].tolist()
+
+    base = alt.Chart(df).encode(
+        x=alt.X("Month:N", sort=order, title=None,
+                axis=alt.Axis(labelAngle=-40, labelColor=_LABEL,
+                              grid=False, labelFont=_FONT)),
+        y=alt.Y("Net:Q", title="KES", axis=_GRID),
+    )
+    bars = base.mark_bar(cornerRadiusEnd=3, size=26).encode(
+        color=alt.Color(
+            "Sign:N",
+            scale=alt.Scale(domain=["Surplus", "Shortfall"],
+                            range=[POSITIVE, NEGATIVE]),
+            legend=alt.Legend(title=None, orient="top", labelColor=_LABEL),
+        ),
+        tooltip=[alt.Tooltip("Month:N"),
+                 alt.Tooltip("Net:Q", format=",.2f", title="Net KES")],
+    )
+    # A zero rule, so a shortfall reads as below the line rather than just short.
+    zero = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(
+        color=theme.INK, strokeWidth=1
+    ).encode(y="y:Q")
+    return (bars + zero).properties(height=height).configure_view(strokeWidth=0)
