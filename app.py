@@ -30,9 +30,10 @@ from app.reports import charts, theme
 # Streamlit hot-reloads app.py but keeps already-imported submodules in memory,
 # so editing app/ and refreshing serves stale code and fails with a confusing
 # AttributeError. Detect that and say what to do about it.
-_REQUIRED_CHART_FUNCS = ("trend_lines", "trend_net_bars", "category_bars",
-                         "in_out_bars", "profit_waterfall", "balance_line",
-                         "monthly_flow", "essential_split")
+_REQUIRED_CHART_FUNCS = ("trend_lines", "trend_net_bars", "trend_cost_stack",
+                         "trend_margin_line", "category_bars", "in_out_bars",
+                         "profit_waterfall", "balance_line", "monthly_flow",
+                         "essential_split")
 _missing = [n for n in _REQUIRED_CHART_FUNCS if not hasattr(charts, n)]
 if _missing:
     st.error(
@@ -574,43 +575,89 @@ def render_trend(trend) -> None:
         return None if pct is None else f"{pct:+.1f}% on {previous.label}"
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric(f"Money in ({latest.label})", kes(latest.money_in),
-              delta("money_in"))
-    m2.metric("Money out", kes(latest.money_out), delta("money_out"),
-              delta_color="inverse")
-    m3.metric("Net", kes(latest.net), delta("net"))
-    m4.metric("Months covered", f"{len(trend.rows)}")
+    if trend.mode == "Business":
+        m1.metric(f"Sales ({latest.label})", kes(latest.money_in), delta("money_in"))
+        m2.metric("Stock bought", kes(latest.cogs), delta("cogs"),
+                  delta_color="inverse")
+        m3.metric("Net profit", kes(latest.net), delta("net"))
+        m4.metric("Kept in business", kes(latest.kept_in_business),
+                  f"{latest.gross_margin_pct}% gross margin")
+    else:
+        m1.metric(f"Money in ({latest.label})", kes(latest.money_in),
+                  delta("money_in"))
+        m2.metric("Money out", kes(latest.money_out), delta("money_out"),
+                  delta_color="inverse")
+        m3.metric("Net", kes(latest.net), delta("net"))
+        m4.metric("Months covered", f"{len(trend.rows)}")
 
-    section("Money in and out, month by month")
-    st.altair_chart(charts.trend_lines(trend), width="stretch")
+    is_business = trend.mode == "Business"
 
-    section("Net position each month")
-    st.altair_chart(charts.trend_net_bars(trend), width="stretch")
+    left, right = st.columns(2, gap="medium")
+    with left:
+        section("Sales and costs, month by month" if is_business
+                else "Money in and out, month by month")
+        st.altair_chart(charts.trend_lines(trend, height=280), width="stretch")
+    with right:
+        section("Net position each month")
+        st.altair_chart(charts.trend_net_bars(trend, height=280), width="stretch")
+
+    if is_business:
+        # A seller whose profit fell needs to know which line moved.
+        section("What your money went on")
+        st.altair_chart(charts.trend_cost_stack(trend), width="stretch")
+
+        section("Margin over time")
+        st.altair_chart(charts.trend_margin_line(trend), width="stretch")
+        st.caption(
+            "Gross margin is what is left after stock. Net margin is what is "
+            "left after everything. Rising sales at a falling margin means you "
+            "are working harder for the same money."
+        )
 
     if trend.insights:
         section("What changed")
         insight_list(trend.insights)
 
     section("Every month")
-    is_business = trend.mode == "Business"
-    st.dataframe(
-        pd.DataFrame([
+    if is_business:
+        table = pd.DataFrame([
+            {
+                "Month": r.label,
+                "Sales": f"{r.money_in:,.0f}",
+                "Stock": f"{r.cogs:,.0f}",
+                "Gross margin": f"{r.gross_margin:,.0f}",
+                "GM %": f"{r.gross_margin_pct}%",
+                "Logistics": f"{r.logistics:,.0f}",
+                "Marketing": f"{r.marketing:,.0f}",
+                "Packaging": f"{r.packaging:,.0f}",
+                "Fees": f"{r.fees:,.0f}",
+                "Net profit": f"{r.net:,.0f}",
+                "Drawings": f"{r.drawings:,.0f}",
+                "Kept": f"{r.kept_in_business:,.0f}",
+                "Items": r.transactions,
+            }
+            for r in trend.rows
+        ])
+    else:
+        table = pd.DataFrame([
             {
                 "Month": r.label,
                 "Money in": f"{r.money_in:,.0f}",
                 "Money out": f"{r.money_out:,.0f}",
                 "Net": f"{r.net:,.0f}",
-                ("Stock" if is_business else "Essentials"):
-                    f"{(r.cogs if is_business else r.essentials):,.0f}",
-                ("Drawings" if is_business else "Saved"):
-                    f"{(r.drawings if is_business else r.savings):,.0f}",
+                "Essentials": f"{r.essentials:,.0f}",
+                "Saved": f"{r.savings:,.0f}",
                 "Fees": f"{r.fees:,.0f}",
                 "Items": r.transactions,
             }
             for r in trend.rows
-        ]),
-        width="stretch", hide_index=True,
-    )
+        ])
+    st.dataframe(table, width="stretch", hide_index=True)
+    if is_business:
+        st.caption(
+            "Kept = net profit less what you took out. It is the money that "
+            "stayed in the business to buy next month's stock."
+        )
 
 
 def insight_list(items) -> None:

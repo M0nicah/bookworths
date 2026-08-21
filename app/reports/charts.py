@@ -346,3 +346,89 @@ def trend_net_bars(trend, *, height: int = 240) -> alt.LayerChart:
         color=theme.INK, strokeWidth=1
     ).encode(y="y:Q")
     return (bars + zero).properties(height=height).configure_view(strokeWidth=0)
+
+
+def trend_cost_stack(trend, *, height: int = 300) -> alt.Chart:
+    """Where each month's money went, stacked.
+
+    A seller whose profit fell wants to know which line moved, not merely that
+    costs rose. Stacking the P&L lines answers that directly, and the fixed
+    hue per category means a category keeps its colour month to month.
+    """
+    parts = [
+        ("Stock", "cogs"), ("Logistics", "logistics"),
+        ("Marketing", "marketing"), ("Packaging", "packaging"),
+        ("M-Pesa fees", "fees"),
+    ]
+    rows = [
+        {"Month": row.label, "Order": row.key, "Cost": label,
+         "Amount": float(getattr(row, field))}
+        for row in trend.rows
+        for label, field in parts
+        if getattr(row, field) > 0
+    ]
+    if not rows:
+        return alt.Chart(pd.DataFrame({"x": []})).mark_bar()
+    df = pd.DataFrame(rows).sort_values("Order")
+    order = df["Month"].drop_duplicates().tolist()
+
+    hues = {
+        "Stock": theme.STOCK, "Logistics": theme.DELIVERY,
+        "Marketing": theme.WITHDRAWAL, "Packaging": theme.BILLS,
+        "M-Pesa fees": theme.MONEY_OUT,
+    }
+    domain = [label for label, _ in parts]
+    return alt.Chart(df).mark_bar(
+        size=30, stroke=theme.CARD, strokeWidth=1.5
+    ).encode(
+        x=alt.X("Month:N", sort=order, title=None,
+                axis=alt.Axis(labelAngle=-40, labelColor=_LABEL,
+                              grid=False, labelFont=_FONT)),
+        y=alt.Y("Amount:Q", title="KES", axis=_GRID),
+        color=alt.Color(
+            "Cost:N",
+            scale=alt.Scale(domain=domain, range=[hues[d] for d in domain]),
+            legend=alt.Legend(title=None, orient="top", labelColor=_LABEL),
+        ),
+        order=alt.Order("Cost:N"),
+        tooltip=[alt.Tooltip("Month:N"), alt.Tooltip("Cost:N"),
+                 alt.Tooltip("Amount:Q", format=",.2f", title="KES")],
+    ).properties(height=height).configure_view(strokeWidth=0)
+
+
+def trend_margin_line(trend, *, height: int = 220) -> alt.LayerChart:
+    """Gross and net margin percentage over time.
+
+    Shown as percentages because a bigger month is not automatically a better
+    one: rising sales at a falling margin is a warning, not a win.
+    """
+    rows = []
+    for row in trend.rows:
+        rows.append({"Month": row.label, "Order": row.key,
+                     "Series": "Gross margin", "Pct": float(row.gross_margin_pct)})
+        rows.append({"Month": row.label, "Order": row.key,
+                     "Series": "Net margin", "Pct": float(row.margin_pct)})
+    if not rows:
+        return alt.LayerChart()
+    df = pd.DataFrame(rows).sort_values("Order")
+    order = df["Month"].drop_duplicates().tolist()
+
+    base = alt.Chart(df).encode(
+        x=alt.X("Month:N", sort=order, title=None,
+                axis=alt.Axis(labelAngle=-40, labelColor=_LABEL,
+                              grid=False, labelFont=_FONT)),
+        y=alt.Y("Pct:Q", title="% of sales", axis=_GRID),
+        color=alt.Color(
+            "Series:N",
+            scale=alt.Scale(domain=["Gross margin", "Net margin"],
+                            range=[theme.DELIVERY, POSITIVE]),
+            legend=alt.Legend(title=None, orient="top", labelColor=_LABEL),
+        ),
+    )
+    dots = base.mark_point(size=55, filled=True).encode(
+        tooltip=[alt.Tooltip("Month:N"), alt.Tooltip("Series:N"),
+                 alt.Tooltip("Pct:Q", format=".1f", title="%")]
+    )
+    return (base.mark_line(strokeWidth=2.5) + dots).properties(
+        height=height
+    ).configure_view(strokeWidth=0)

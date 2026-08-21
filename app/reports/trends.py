@@ -34,9 +34,14 @@ class MonthRow:
     money_out: Decimal = ZERO
     fees: Decimal = ZERO
     transactions: int = 0
-    #: Business only.
+    #: Business only — one field per P&L line, so a seller can see which
+    #: cost actually moved rather than only that costs rose.
     cogs: Decimal = ZERO
+    logistics: Decimal = ZERO
+    marketing: Decimal = ZERO
+    packaging: Decimal = ZERO
     drawings: Decimal = ZERO
+    unresolved: Decimal = ZERO
     #: Personal only.
     essentials: Decimal = ZERO
     savings: Decimal = ZERO
@@ -50,6 +55,36 @@ class MonthRow:
         if self.money_in <= ZERO:
             return ZERO
         return _q(self.net / self.money_in * 100)
+
+    # --- business-only derived figures ---------------------------------
+
+    @property
+    def gross_margin(self) -> Decimal:
+        """Sales less the cost of the stock sold."""
+        return self.money_in - self.cogs
+
+    @property
+    def gross_margin_pct(self) -> Decimal:
+        if self.money_in <= ZERO:
+            return ZERO
+        return _q(self.gross_margin / self.money_in * 100)
+
+    @property
+    def operating_costs(self) -> Decimal:
+        """Everything except stock — the cost of running, not of buying."""
+        return self.money_out - self.cogs
+
+    @property
+    def cogs_ratio_pct(self) -> Decimal:
+        """What share of every shilling sold went on stock."""
+        if self.money_in <= ZERO:
+            return ZERO
+        return _q(self.cogs / self.money_in * 100)
+
+    @property
+    def kept_in_business(self) -> Decimal:
+        """Net profit after the owner has taken their drawings."""
+        return self.net - self.drawings
 
 
 @dataclass
@@ -116,6 +151,9 @@ def build_business_trend(results: Sequence[ClassifiedTransaction]) -> Trend:
         key, label = _month_parts(txn.timestamp.date())
         row = buckets.setdefault(key, MonthRow(key=key, label=label))
         row.transactions += 1
+        # Tariffs arrive two ways: merged onto a payment line as fee_amount,
+        # and as standalone fee transactions. Count both here, and never again
+        # below, so `fees` is the single total the Profit Pack also reports.
         row.fees += txn.fee_amount
 
         account = item.account
@@ -125,10 +163,23 @@ def build_business_trend(results: Sequence[ClassifiedTransaction]) -> Trend:
             # Drawings are equity, not a business cost, so they sit outside
             # money_out — exactly as the Profit Pack treats them.
             row.drawings += txn.gross_amount
-        elif account is not Account.UNRESOLVED:
+        elif account is Account.UNRESOLVED:
+            row.unresolved += txn.gross_amount
+        elif account is Account.FINANCIAL_FEES:
+            # A standalone tariff line. Its own fee_amount was added above, so
+            # only the transaction value goes here.
+            row.fees += txn.gross_amount
+            row.money_out += txn.gross_amount
+        else:
             row.money_out += txn.gross_amount
             if account in (Account.COGS_RESTOCK, Account.COGS_SOURCING_TRANSPORT):
                 row.cogs += txn.gross_amount
+            elif account is Account.LOGISTICS:
+                row.logistics += txn.gross_amount
+            elif account is Account.MARKETING:
+                row.marketing += txn.gross_amount
+            elif account is Account.PACKAGING:
+                row.packaging += txn.gross_amount
 
     trend = Trend(rows=[buckets[k] for k in sorted(buckets)], mode="Business")
     trend.insights = _business_insights(trend)
@@ -190,6 +241,53 @@ def _business_insights(trend: Trend) -> list[str]:
         out.append(
             f"Stock spend rose {cogs_pct}% while sales moved {sales_pct}%. "
             "You are buying faster than you are selling."
+        )
+
+    # Margin is the figure that says whether growth is worth having.
+    if latest.money_in > ZERO and previous.money_in > ZERO:
+        margin_move = _q(latest.gross_margin_pct - previous.gross_margin_pct)
+        if abs(margin_move) >= 3:
+            out.append(
+                f"Gross margin is {_direction_word(margin_move)} "
+                f"{abs(margin_move)} points, {previous.gross_margin_pct}% to "
+                f"{latest.gross_margin_pct}%. "
+                + ("You are paying more for stock, or selling it cheaper."
+                   if margin_move < ZERO else
+                   "You are buying better, or charging more.")
+            )
+
+    # Which cost line actually moved — the useful question when profit falls.
+    movers: list[tuple[str, Decimal]] = []
+    for field, label in (("logistics", "Logistics"), ("marketing", "Marketing"),
+                         ("packaging", "Packaging"), ("fees", "M-Pesa fees")):
+        pct = trend.change_pct(field)
+        if pct is not None and abs(pct) >= 25 and getattr(latest, field) > ZERO:
+            movers.append((label, pct))
+    if movers:
+        movers.sort(key=lambda pair: abs(pair[1]), reverse=True)
+        label, pct = movers[0]
+        out.append(
+            f"{label} moved most among your running costs: "
+            f"{_direction_word(pct)} {abs(pct)}% on {previous.label}."
+        )
+
+    fee_total = sum((r.fees for r in trend.rows), ZERO)
+    if fee_total > ZERO:
+        out.append(
+            f"Safaricom fees cost you {fee_total:,.0f} KES across "
+            f"{len(trend.rows)} months — {trend.average('fees'):,.0f} a month."
+        )
+
+    kept = [r for r in trend.rows if r.kept_in_business > ZERO]
+    if not kept:
+        out.append(
+            "You drew out everything you earned in every month here. Nothing "
+            "was left to grow stock."
+        )
+    elif len(kept) < len(trend.rows):
+        out.append(
+            f"You left money in the business in {len(kept)} of "
+            f"{len(trend.rows)} months."
         )
 
     if trend.best and trend.worst and trend.best.key != trend.worst.key:

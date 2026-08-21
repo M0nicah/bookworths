@@ -1384,6 +1384,76 @@ def test_stale_module_guard_lists_the_charts_it_needs():
 
 
 
+def _multi_month_business(months: int = 3):
+    """Classified results spanning several months, for trend tests."""
+    import pandas as pd
+
+    raw = load_mock_statement()
+    frames = []
+    for index in range(months):
+        frame = raw.copy()
+        frame["Completion Time"] = frame["Completion Time"].str.replace(
+            "2026-07", f"2026-{7 + index:02d}", regex=False
+        )
+        frame["Receipt No."] = frame["Receipt No."] + chr(65 + index)
+        frames.append(frame)
+    engine = CategorizationEngine(memory=EntityMemory(_tmp_db()),
+                                  backend=HeuristicBackend())
+    return engine.classify_all(
+        normalize_statement(pd.concat(frames, ignore_index=True))
+    )
+
+
+def test_business_trend_tracks_every_pl_line():
+    """A seller needs to see which cost moved, not just that costs rose."""
+    from app.reports.trends import build_business_trend
+
+    trend = build_business_trend(_multi_month_business())
+    for row in trend.rows:
+        for field in ("cogs", "logistics", "marketing", "packaging", "fees"):
+            assert getattr(row, field) > ZERO, f"{field} not tracked"
+
+
+def test_business_month_reconciles_with_its_own_lines():
+    """money_out must equal the cost lines it is built from."""
+    from app.reports.trends import build_business_trend
+
+    for row in build_business_trend(_multi_month_business()).rows:
+        # Merged tariffs already sit inside the payment lines, so money_out is
+        # the four cost lines plus any standalone fee transactions.
+        named = row.cogs + row.logistics + row.marketing + row.packaging
+        assert row.money_out >= named
+        assert row.operating_costs == row.money_out - row.cogs
+        assert row.gross_margin == row.money_in - row.cogs
+        assert row.kept_in_business == row.net - row.drawings
+
+
+def test_business_trend_matches_the_profit_pack():
+    """One month of the trend must agree with the Profit Pack for that month."""
+    from app.reports.trends import build_business_trend
+
+    results = _pack()                       # single-month demo
+    pack = build_profit_pack(results)
+    # Build a trend over the same single month by duplicating nothing.
+    trend = build_business_trend(results)
+    row = trend.rows[0]
+    assert row.money_in == pack.gross_revenue
+    assert row.cogs == pack.total_cogs
+    assert row.drawings == pack.owner_drawings
+    # The fee total is the one the Profit Pack highlights as leakage.
+    assert row.fees == pack.financial_fees
+
+
+def test_business_trend_charts_render():
+    from app.reports import charts
+    from app.reports.trends import build_business_trend
+
+    trend = build_business_trend(_multi_month_business())
+    charts.trend_cost_stack(trend).to_dict()
+    charts.trend_margin_line(trend).to_dict()
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 
