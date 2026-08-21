@@ -798,8 +798,40 @@ st.html(
     </div>"""
 )
 
-# Before anything has been analysed the page is otherwise empty, so explain
-# what the app does and show a stand-in for the result.
+ready = source == "Built-in demo" or upload is not None
+if st.button(f"Analyse {mode.lower()} statement", type="primary", disabled=not ready):
+    progress = st.progress(0, text="Reading statement…")
+    try:
+        if mode == "Personal":
+            progress.progress(30, text="Reading statement…")
+            report = _run_personal()
+            progress.progress(80, text="Analysing household spending…")
+            st.session_state["household"] = report
+            st.session_state.pop("result", None)
+        else:
+            progress.progress(25, text="Reading statement…")
+            result_ = _run()
+            progress.progress(85, text="Categorising transactions…")
+            st.session_state["result"] = result_
+            st.session_state.pop("household", None)
+        progress.progress(100, text="Done")
+        progress.empty()
+    except ImportError as exc:
+        progress.empty()
+        st.error(f"Missing an optional dependency: {exc}")
+    except ValueError as exc:
+        progress.empty()
+        st.error(f"That statement could not be read: {exc}")
+        st.caption(
+            "Bookworths reads CSV, XLSX, XLS, ODS, PDF and fixed-width text exports. "
+            "It expects the Safaricom columns: Receipt No., Completion Time, Details, "
+            "Transaction Status, Paid In, Withdrawn, Balance. If a converted PDF fails, "
+            "re-export as CSV from the M-Pesa app."
+        )
+
+# Placeholder for the empty state only. This must run AFTER the analyse
+# button, or on the click itself session_state is still empty and the
+# landing renders above the fresh results.
 if "result" not in st.session_state and "household" not in st.session_state:
     if mode == "Business":
         lead = "See what your shop actually earned."
@@ -865,37 +897,6 @@ if "result" not in st.session_state and "household" not in st.session_state:
           </div>
         </div>"""
     )
-
-ready = source == "Built-in demo" or upload is not None
-if st.button(f"Analyse {mode.lower()} statement", type="primary", disabled=not ready):
-    progress = st.progress(0, text="Reading statement…")
-    try:
-        if mode == "Personal":
-            progress.progress(30, text="Reading statement…")
-            report = _run_personal()
-            progress.progress(80, text="Analysing household spending…")
-            st.session_state["household"] = report
-            st.session_state.pop("result", None)
-        else:
-            progress.progress(25, text="Reading statement…")
-            result_ = _run()
-            progress.progress(85, text="Categorising transactions…")
-            st.session_state["result"] = result_
-            st.session_state.pop("household", None)
-        progress.progress(100, text="Done")
-        progress.empty()
-    except ImportError as exc:
-        progress.empty()
-        st.error(f"Missing an optional dependency: {exc}")
-    except ValueError as exc:
-        progress.empty()
-        st.error(f"That statement could not be read: {exc}")
-        st.caption(
-            "Bookworths reads CSV, XLSX, XLS, ODS, PDF and fixed-width text exports. "
-            "It expects the Safaricom columns: Receipt No., Completion Time, Details, "
-            "Transaction Status, Paid In, Withdrawn, Balance. If a converted PDF fails, "
-            "re-export as CSV from the M-Pesa app."
-        )
 
 if not ready and source == "Upload a file":
     st.info("Upload an M-Pesa statement in the sidebar, or switch to the built-in demo.")

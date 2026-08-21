@@ -1290,6 +1290,29 @@ def test_trend_change_handles_a_zero_base():
 
 
 
+def test_landing_screen_is_checked_after_analysis_runs():
+    """The placeholder must vanish on the same click that produces results.
+
+    Streamlit reruns top to bottom, so if the landing check sits above the
+    analyse button it reads a session_state that has not been updated yet, and
+    the "what Bookworths does" block renders above the fresh results.
+    """
+    source = Path("app.py").read_text()
+    stores_result = source.index('st.session_state["result"] = result_')
+    landing_check = source.index(
+        'if "result" not in st.session_state and "household" not in st.session_state:'
+    )
+    renders_results = source.index('household = st.session_state.get("household")')
+
+    assert landing_check > stores_result, (
+        "the landing check must run after analysis stores its result"
+    )
+    assert landing_check < renders_results, (
+        "the landing check must still run before results are rendered"
+    )
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 
