@@ -245,6 +245,10 @@ st.html(
   .bw-head h1 {{ font-family: var(--serif); font-size: 40px; margin: 0;
                  color: var(--ink); }}
   .bw-head .tag {{ font-size: 14px; color: var(--ink-2); margin-top: 6px; }}
+  .bw-head .mode.demo {{ background: {theme.CHIPS["bills"][0]};
+                         border-color: {theme.BILLS};
+                         color: {theme.CHIPS["bills"][1]};
+                         margin-left: 8px; }}
   .bw-head .mode {{ display: inline-block; margin-top: 12px; padding: 5px 15px;
                     border-radius: {theme.RADIUS_PILL}; background: var(--inset);
                     border: 1px solid var(--divider); color: var(--ink-2);
@@ -576,6 +580,11 @@ with st.sidebar:
     source = st.radio(
         "Source", ["Built-in demo", "Upload a file"], label_visibility="collapsed"
     )
+    if source == "Built-in demo":
+        st.caption(
+            "Sample data from a made-up seller — nothing here is real. "
+            "Switch to **Upload a file** to analyse your own statement."
+        )
     upload = None
     pdf_password = None
     if source == "Upload a file":
@@ -722,6 +731,10 @@ def _run_personal():
     return build_household_report(normalize_statement(raw))
 
 
+demo_badge = (
+    '<div class="mode demo">Sample data &mdash; not a real statement</div>'
+    if source == "Built-in demo" else ""
+)
 st.html(
     f"""<div class="bw-head">
       <div class="bw-brand">
@@ -732,6 +745,7 @@ st.html(
         </div>
       </div>
       <div class="mode">{mode} mode &middot; all amounts in KES</div>
+      {demo_badge}
     </div>"""
 )
 

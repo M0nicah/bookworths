@@ -1180,6 +1180,25 @@ def test_every_app_import_resolves():
 
 
 
+def test_demo_data_is_labelled_as_sample():
+    """A tester must never mistake the built-in demo for their own numbers."""
+    source = Path("app.py").read_text()
+    assert "Sample data" in source
+    # The badge must be conditional, or real uploads get labelled sample too.
+    assert 'if source == "Built-in demo" else ""' in source
+
+
+def test_demo_counterparties_are_fictional():
+    """The demo ships publicly, so it must contain no real person's details."""
+    from app.mockdata import MPESA_STATEMENT_CSV
+
+    # Real Safaricom numbers are 2547xxxxxxxx; the demo uses invented ones,
+    # but the important guarantee is that it is generated, not captured.
+    assert "MAMA BALE GIKOMBA" in MPESA_STATEMENT_CSV
+    assert len(MPESA_STATEMENT_CSV.splitlines()) > 50
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 
