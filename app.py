@@ -82,6 +82,7 @@ st.html(
     --rule: {theme.ROW_RULE};  --track: {theme.TRACK};
     --sidebar: {theme.SIDEBAR};  --sidebar-text: {theme.SIDEBAR_TEXT};
     --sidebar-muted: {theme.SIDEBAR_MUTED};  --sidebar-rule: {theme.SIDEBAR_RULE};
+        --sidebar-active: {theme.SIDEBAR_ACTIVE};
     --ink: {theme.INK};  --ink-num: {theme.INK_NUMERIC};
     --ink-2: {theme.INK_SECONDARY};  --label: {theme.INK_LABEL};
     --muted: {theme.INK_MUTED};
@@ -111,11 +112,51 @@ st.html(
   section[data-testid="stSidebar"] h1,
   section[data-testid="stSidebar"] h2,
   section[data-testid="stSidebar"] h3 {{ color: {theme.PAGE} !important; }}
+  /* Inputs sit on the dark ground, so they need an opaque dark fill and
+     explicitly light text. Streamlit's own secondaryBackgroundColor would
+     otherwise paint them cream and leave the text unreadable. */
   section[data-testid="stSidebar"] input,
-  section[data-testid="stSidebar"] div[data-baseweb="select"] > div {{
-    background: rgba(255,255,255,.06); border-color: var(--sidebar-rule);
-    color: var(--sidebar-text);
+  section[data-testid="stSidebar"] textarea,
+  section[data-testid="stSidebar"] div[data-baseweb="input"],
+  section[data-testid="stSidebar"] div[data-baseweb="base-input"],
+  section[data-testid="stSidebar"] div[data-baseweb="select"] > div,
+  section[data-testid="stSidebar"] div[data-testid="stNumberInputContainer"],
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] {{
+    background: #24352B !important;
+    border-color: var(--sidebar-active) !important;
+    color: {theme.PAGE} !important;
   }}
+  section[data-testid="stSidebar"] input,
+  section[data-testid="stSidebar"] textarea,
+  section[data-testid="stSidebar"] div[data-baseweb="select"] div {{
+    color: {theme.PAGE} !important;
+    -webkit-text-fill-color: {theme.PAGE} !important;
+  }}
+  /* Placeholders must be dimmer than real input, but still legible. */
+  section[data-testid="stSidebar"] input::placeholder,
+  section[data-testid="stSidebar"] textarea::placeholder {{
+    color: #A9BCAE !important;
+    -webkit-text-fill-color: #A9BCAE !important;
+    opacity: 1;
+  }}
+  /* Uploader chrome: dropzone hint text and the Browse button. */
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] span,
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] small,
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] div {{
+    color: #A9BCAE !important;
+  }}
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] button {{
+    background: var(--sidebar-active) !important;
+    color: {theme.PAGE} !important;
+    border-color: var(--sidebar-active) !important;
+  }}
+  /* Number-input steppers and the password reveal eye. */
+  section[data-testid="stSidebar"] button[data-testid="stNumberInputStepUp"],
+  section[data-testid="stSidebar"] button[data-testid="stNumberInputStepDown"],
+  section[data-testid="stSidebar"] div[data-baseweb="input"] button {{
+    background: transparent !important; color: {theme.PAGE} !important;
+  }}
+  section[data-testid="stSidebar"] svg {{ fill: {theme.PAGE}; }}
 
   /* Masthead ---------------------------------------------------------- */
   .bw-head {{ margin: 0 0 22px; }}

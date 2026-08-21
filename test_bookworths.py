@@ -808,6 +808,49 @@ def test_app_has_no_undefined_names():
 
 
 
+def _contrast(hex_a: str, hex_b: str) -> float:
+    """WCAG contrast ratio between two hex colours."""
+    def luminance(value: str) -> float:
+        value = value.lstrip("#")
+        channels = [int(value[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        channels = [
+            c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+            for c in channels
+        ]
+        return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+    light, dark = sorted([luminance(hex_a), luminance(hex_b)], reverse=True)
+    return (light + 0.05) / (dark + 0.05)
+
+
+def test_sidebar_input_text_is_readable():
+    """Regression: sidebar inputs rendered pale text on a cream fill (1.2:1).
+
+    Streamlit's own secondaryBackgroundColor paints inputs light, so the dark
+    sidebar must set an opaque dark fill AND explicit light text.
+    """
+    from app.reports import theme
+
+    source = Path("app.py").read_text()
+    assert "#24352B" in source, "sidebar inputs need an opaque dark fill"
+
+    # Entered text and placeholder must both clear WCAG AA on that fill.
+    assert _contrast(theme.PAGE, "#24352B") >= 4.5
+    assert _contrast("#A9BCAE", "#24352B") >= 4.5
+    # And the placeholder must be dimmer than real input, or it reads as a value.
+    assert _contrast("#A9BCAE", "#24352B") < _contrast(theme.PAGE, "#24352B")
+
+
+def test_theme_body_text_is_readable_on_its_surfaces():
+    """Ink on card and page must clear AA — these carry every figure."""
+    from app.reports import theme
+
+    for ink in (theme.INK, theme.INK_NUMERIC, theme.INK_SECONDARY):
+        assert _contrast(ink, theme.CARD) >= 4.5, ink
+        assert _contrast(ink, theme.PAGE) >= 4.5, ink
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 
