@@ -1156,6 +1156,30 @@ def test_printable_html_watermark_prints():
 
 
 
+def test_every_app_import_resolves():
+    """app.py is a script, so a broken import only shows when it is served.
+
+    Walk its import statements and resolve each one for real, which catches a
+    name that was renamed or never added.
+    """
+    import ast
+    import importlib
+
+    tree = ast.parse(Path("app.py").read_text())
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or not node.module:
+            continue
+        if not node.module.startswith("app"):
+            continue  # third-party imports are covered by requirements
+        module = importlib.import_module(node.module)
+        for alias in node.names:
+            assert hasattr(module, alias.name), (
+                f"app.py imports {alias.name} from {node.module}, "
+                "but it does not exist"
+            )
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 

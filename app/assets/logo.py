@@ -11,9 +11,9 @@ runs on, that a statement becomes a picture of a business.
 """
 from __future__ import annotations
 
-from . import __name__ as _pkg  # noqa: F401  (marks this a package module)
-
 from ..reports import theme
+
+__all__ = ["logo_svg", "favicon_svg", "watermark_svg", "watermark_data_uri"]
 
 
 def logo_svg(size: int = 44, dark: bool = False) -> str:
