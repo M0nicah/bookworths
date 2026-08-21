@@ -631,21 +631,44 @@ with st.sidebar:
     )
     if source == "Built-in demo":
         st.caption(
-            "Sample data from a made-up seller — nothing here is real. "
-            "Switch to **Upload a file** to analyse your own statement."
+            "Sample data — nothing here is real. Switch to **Upload a file** "
+            + ("to analyse your own business line."
+               if mode == "Business" else
+               "to analyse your own personal line.")
         )
     upload = None
     pdf_password = None
     if source == "Upload a file":
+        # Sellers commonly run two lines: a till or business number, and a
+        # personal one. Name the field for whichever they are analysing so it
+        # is obvious the right statement belongs here.
         upload = st.file_uploader(
-            "M-Pesa export", type=["csv", "xlsx", "xls", "ods", "pdf", "txt"],
-            help="The statement Safaricom emails you, or an export from the M-Pesa app.",
+            "Business M-Pesa statement" if mode == "Business"
+            else "Personal M-Pesa statement",
+            type=["csv", "xlsx", "xls", "ods", "pdf", "txt"],
+            help=(
+                "The statement Safaricom emails you, or an export from the "
+                "M-Pesa app. Upload the till or business line here."
+                if mode == "Business" else
+                "The statement Safaricom emails you, or an export from the "
+                "M-Pesa app. Upload your personal line here — if you run two "
+                "SIMs, this is the one you spend from."
+            ),
         )
         pdf_password = st.text_input("PDF password (if protected)", type="password") or None
 
     business = "Thrift by Njeri"
     backend = "auto"
     cash_override = 0.0
+
+    if mode == "Personal":
+        st.divider()
+        st.subheader("Settings")
+        business = st.text_input(
+            "Your name", value="",
+            placeholder="Njeri",
+            help="Appears on the downloaded report. Leave blank to omit it.",
+        )
 
     if mode == "Business":
         st.divider()
@@ -840,7 +863,8 @@ if "result" not in st.session_state and "household" not in st.session_state:
                "packaging and the Safaricom fees nobody counts &mdash; then tells "
                "you what is genuinely left.")
         steps = [
-            ("Reads the statement", "CSV, XLSX, ODS or PDF, straight from M-Pesa."),
+            ("Upload your business statement",
+             "Your till or business line — CSV, XLSX, ODS or PDF."),
             ("Sorts every shilling", "Sales, stock, delivery, fees, and what you took out."),
             ("Shows the real profit", "Plus a safe budget for your next stock run."),
         ]
@@ -855,9 +879,12 @@ if "result" not in st.session_state and "household" not in st.session_state:
         lead = "See where your money actually goes."
         sub = ("Bookworths reads your M-Pesa statement and groups every shilling "
                "into the things you actually spend on &mdash; food, rent, transport, "
-               "loans, savings &mdash; then shows whether the month added up.")
+               "loans, savings &mdash; then shows whether the month added up. "
+               "Run two SIMs? Analyse the personal one here and the business "
+               "line under Business mode.")
         steps = [
-            ("Reads the statement", "CSV, XLSX, ODS or PDF, straight from M-Pesa."),
+            ("Upload your personal statement",
+             "The line you spend from — CSV, XLSX, ODS or PDF."),
             ("Groups your spending", "Essentials against everything else."),
             ("Checks your position", "Savings rate, debt load, and how long your cash lasts."),
         ]

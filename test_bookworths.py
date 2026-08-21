@@ -1313,6 +1313,48 @@ def test_landing_screen_is_checked_after_analysis_runs():
 
 
 
+def test_upload_is_available_in_both_modes():
+    """Sellers often run two SIMs, so each line must be uploadable."""
+    source = Path("app.py").read_text()
+    uploader = source.index("upload = st.file_uploader(")
+    business_only = source.index('    if mode == "Business":')
+    assert uploader < business_only, (
+        "the uploader must sit outside the Business-only settings block"
+    )
+    # And the field must name the line it expects, in each mode.
+    assert "Business M-Pesa statement" in source
+    assert "Personal M-Pesa statement" in source
+
+
+def test_personal_mode_accepts_a_real_upload():
+    """End-to-end: a personal statement produces a household report."""
+    from app.pipeline import run_personal
+
+    target = _write_formats(Path(tempfile.mkdtemp()))
+    report = run_personal(target / "s.csv")
+    assert report.total_income > ZERO
+    assert report.transaction_count == 59
+
+
+def test_personal_pdf_handles_a_missing_name():
+    """The name field is optional, so a blank must not print a stray separator."""
+    import io as _io
+
+    import pdfplumber
+
+    from app.pipeline import run_personal
+    from app.reports.pdf import personal_report_pdf
+
+    report = run_personal()
+    with pdfplumber.open(_io.BytesIO(personal_report_pdf(report, ""))) as document:
+        text = document.pages[0].extract_text()
+    assert "·  ·" not in text and "· ·" not in text
+
+    with pdfplumber.open(_io.BytesIO(personal_report_pdf(report, "Njeri"))) as document:
+        assert "Njeri" in document.pages[0].extract_text()
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 
