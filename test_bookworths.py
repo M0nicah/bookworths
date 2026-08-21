@@ -841,6 +841,25 @@ def test_sidebar_input_text_is_readable():
     assert _contrast("#A9BCAE", "#24352B") < _contrast(theme.PAGE, "#24352B")
 
 
+def test_file_uploader_is_readable_on_the_dark_sidebar():
+    """The uploader sits on the dark ground and has three text layers.
+
+    Its test IDs were confirmed against the installed Streamlit build rather
+    than guessed, so assert they are the ones actually targeted.
+    """
+    from app.reports import theme
+
+    source = Path("app.py").read_text()
+    for test_id in ("stFileUploader", "stFileUploaderDropzone",
+                    "stFileUploaderDropzoneInstructions"):
+        assert test_id in source, f"uploader rule missing for {test_id}"
+
+    # Filename, the size/format hint, and the Browse button all clear AA.
+    assert _contrast(theme.PAGE, "#24352B") >= 4.5
+    assert _contrast("#A9BCAE", "#24352B") >= 4.5
+    assert _contrast(theme.PAGE, theme.SIDEBAR_ACTIVE) >= 4.5
+
+
 def test_theme_body_text_is_readable_on_its_surfaces():
     """Ink on card and page must clear AA — these carry every figure."""
     from app.reports import theme

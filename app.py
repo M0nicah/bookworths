@@ -139,17 +139,47 @@ st.html(
     -webkit-text-fill-color: #A9BCAE !important;
     opacity: 1;
   }}
-  /* Uploader chrome: dropzone hint text and the Browse button. */
-  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] span,
-  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] small,
-  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] div {{
+  /* File uploader. Test IDs confirmed against the installed Streamlit build:
+     stFileUploader (outer), stFileUploaderDropzone, …DropzoneInput,
+     …DropzoneInstructions. The instructions line carries the size/format hint
+     and was the least readable element on the dark ground. */
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"],
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] {{
+    background: #24352B !important;
+    border: 1px dashed var(--sidebar-active) !important;
+    color: {theme.PAGE} !important;
+  }}
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"] * {{
+    color: {theme.PAGE} !important;
+  }}
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzoneInstructions"],
+  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzoneInstructions"] * {{
     color: #A9BCAE !important;
   }}
-  section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] button {{
+  /* The Browse button reads as the action, so it gets a solid fill. */
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button {{
     background: var(--sidebar-active) !important;
     color: {theme.PAGE} !important;
-    border-color: var(--sidebar-active) !important;
+    border: 1px solid var(--sidebar-active) !important;
+    font-weight: 600;
   }}
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"] button:hover {{
+    background: {theme.MONEY_IN} !important;
+    border-color: {theme.MONEY_IN} !important;
+  }}
+  /* The uploaded-file row that replaces the hint once a file is chosen. */
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"] li,
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"] li * {{
+    color: {theme.PAGE} !important;
+  }}
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"] li {{
+    background: rgba(255,255,255,.05) !important;
+    border-radius: 8px;
+  }}
+  section[data-testid="stSidebar"] div[data-testid="stFileUploader"] svg {{
+    fill: {theme.PAGE} !important; color: {theme.PAGE} !important;
+  }}
+
   /* Number-input steppers and the password reveal eye. */
   section[data-testid="stSidebar"] button[data-testid="stNumberInputStepUp"],
   section[data-testid="stSidebar"] button[data-testid="stNumberInputStepDown"],
