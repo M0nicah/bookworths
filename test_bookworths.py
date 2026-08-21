@@ -1096,6 +1096,66 @@ def test_runtime_imports_are_declared_in_requirements():
 
 
 
+# --- watermark -------------------------------------------------------------
+
+def test_watermark_is_flat_not_gradient():
+    """Gradients would bleed colour into a background tint."""
+    from app.assets.logo import watermark_data_uri, watermark_svg
+
+    mark = watermark_svg()
+    assert "linearGradient" not in mark
+    assert mark.count("<path") >= 6, "watermark must carry the full mark"
+    assert watermark_data_uri().startswith("data:image/svg+xml;base64,")
+
+
+def test_web_watermark_sits_behind_content():
+    """A watermark over the figures would make them unreadable."""
+    source = Path("app.py").read_text()
+    assert ".stApp::before" in source
+    assert "pointer-events: none" in source
+    assert "z-index: 1" in source, "content must sit above the watermark"
+    # Faint enough to read as texture, not as an image.
+    assert "opacity: .03" in source
+
+
+def test_pdf_draws_the_mark_on_every_page():
+    """Header logo and watermark must repeat, not appear only on page one."""
+    import pdfplumber
+
+    from app.reports.pdf import profit_pack_pdf
+
+    buffer = io.BytesIO(profit_pack_pdf(build_profit_pack(_pack()), "Test"))
+    with pdfplumber.open(buffer) as document:
+        assert len(document.pages) >= 2
+        for page in document.pages:
+            # Each mark contributes curved leaves; both marks means >= 4.
+            assert len(page.curves) >= 4, "mark missing from a page"
+
+
+def test_pdf_watermark_does_not_obscure_text():
+    """The figures must stay extractable, so the watermark stays faint."""
+    import pdfplumber
+
+    from app.reports.pdf import profit_pack_pdf
+
+    pack = build_profit_pack(_pack())
+    buffer = io.BytesIO(profit_pack_pdf(pack, "Test"))
+    with pdfplumber.open(buffer) as document:
+        text = "".join(page.extract_text() or "" for page in document.pages)
+    assert f"{pack.net_profit:,.2f}" in text
+
+
+def test_printable_html_watermark_prints():
+    """A printed Profit Pack should still read as ours."""
+    from app.reports.profit_pack import render_html
+
+    html = render_html(build_profit_pack(_pack()))
+    assert "body::before" in html
+    assert "@media print" in html
+    assert "data:image/svg+xml" in html
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 

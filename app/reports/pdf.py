@@ -197,17 +197,82 @@ def profit_pack_pdf(pack, business_name: str = "") -> bytes:
     return buffer.getvalue()
 
 
-def _rule(canvas, doc) -> None:
-    """A thin brand rule and page number on every page."""
+#: The mark, as reportlab path instructions. Same geometry as the SVG, in the
+#: SVG's own 120x108 coordinate space; the caller scales and positions it.
+_BARS = [
+    [(34, 62), (34, 40), (45, 34), (45, 62)],
+    [(50, 62), (50, 22), (62, 15), (62, 62)],
+    [(67, 62), (67, 34), (78, 28), (78, 62)],
+    [(83, 62), (83, 12), (95, 5), (95, 62)],
+]
+
+
+def _draw_mark(canvas, x: float, y: float, size: float, colour, alpha: float = 1.0):
+    """Draw the Bookworths mark with its lower-left corner at (x, y).
+
+    reportlab has no SVG support, so the mark is redrawn with native path
+    calls. `size` is the width in points; height follows the 120:108 ratio.
+    """
     canvas.saveState()
+    canvas.translate(x, y)
+    scale = size / 120.0
+    canvas.scale(scale, scale)
+    canvas.setFillColor(colour)
+    if alpha < 1.0:
+        canvas.setFillAlpha(alpha)
+
+    # Bars. The SVG y-axis points down and the PDF's points up, so flip.
+    for bar in _BARS:
+        path = canvas.beginPath()
+        first = True
+        for px, py in bar:
+            if first:
+                path.moveTo(px, 108 - py)
+                first = False
+            else:
+                path.lineTo(px, 108 - py)
+        path.close()
+        canvas.drawPath(path, stroke=0, fill=1)
+
+    # The two open leaves, as cubic curves matching the SVG.
+    for leaf in (
+        [(58, 66), (46, 56), (30, 54), (12, 57), (4, 78), (24, 74), (44, 76), (58, 86)],
+        [(62, 66), (74, 56), (90, 54), (108, 57), (116, 78), (96, 74), (76, 76), (62, 86)],
+    ):
+        pts = [(px, 108 - py) for px, py in leaf]
+        path = canvas.beginPath()
+        path.moveTo(*pts[0])
+        path.curveTo(*pts[1], *pts[2], *pts[3])
+        path.lineTo(*pts[4])
+        path.curveTo(*pts[5], *pts[6], *pts[7])
+        path.close()
+        canvas.drawPath(path, stroke=0, fill=1)
+    canvas.restoreState()
+
+
+def _rule(canvas, doc) -> None:
+    """Brand furniture drawn on every page: watermark, rule, logo, footer."""
+    canvas.saveState()
+
+    # Watermark first, so everything else sits on top of it.
+    page_w, page_h = doc.pagesize
+    mark = 300
+    _draw_mark(
+        canvas, (page_w - mark) / 2, (page_h - mark * 0.9) / 2,
+        mark, _IN, alpha=0.045,
+    )
+
+    # Header rule with the mark sitting on it.
+    y = page_h - 13 * mm
     canvas.setStrokeColor(_IN)
     canvas.setLineWidth(2.2)
-    y = doc.pagesize[1] - 13 * mm
-    canvas.line(20 * mm, y, doc.pagesize[0] - 20 * mm, y)
+    canvas.line(20 * mm, y, page_w - 20 * mm, y)
+    _draw_mark(canvas, page_w - 20 * mm - 26, y + 4, 26, _IN)
+
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(_MUTED)
-    canvas.drawRightString(doc.pagesize[0] - 20 * mm, 10 * mm, f"Page {doc.page}")
-    canvas.drawString(20 * mm, 10 * mm, "Bookworths")
+    canvas.drawRightString(page_w - 20 * mm, 10 * mm, f"Page {doc.page}")
+    canvas.drawString(20 * mm, 10 * mm, "Bookworths — clean books, clear value")
     canvas.restoreState()
 
 

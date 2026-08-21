@@ -24,7 +24,7 @@ from app.mockdata import load_mock_statement
 from app.pipeline import BookworthsResult
 from app.engine import CategorizationEngine
 from app.reports.profit_pack import build_profit_pack, kes, render_html, render_markdown
-from app.assets.logo import favicon_svg, logo_svg
+from app.assets.logo import favicon_svg, logo_svg, watermark_data_uri
 from app.reports import charts, theme
 from app.reports.pdf import personal_report_pdf, profit_pack_pdf
 from app.reports.people import Counterparty, top_counterparties
@@ -117,7 +117,22 @@ st.html(
     --mono: {theme.FONT_MONO};
   }}
 
+  /* A single large mark, fixed behind the content. Kept at 3% so it reads
+     as texture rather than an image: any stronger and it competes with the
+     figures, which are the reason anyone is here. */
   .stApp {{ background: var(--page); }}
+  .stApp::before {{
+    content: ""; position: fixed; inset: 0; z-index: 0;
+    background-image: url("{watermark_data_uri()}");
+    background-repeat: no-repeat;
+    background-position: 82% 52%;
+    background-size: min(46vw, 560px);
+    opacity: .03;
+    pointer-events: none;
+  }}
+  /* Content must sit above the watermark or it disappears behind it. */
+  .stApp > * {{ position: relative; z-index: 1; }}
+  @media print {{ .stApp::before {{ display: none; }} }}
   html, body, [class*="css"] {{ font-family: var(--sans); color: var(--ink); }}
   h1, h2, h3 {{ font-family: var(--serif) !important; font-weight: 400 !important;
                 letter-spacing: -0.01em; }}

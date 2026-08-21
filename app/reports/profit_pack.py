@@ -265,6 +265,7 @@ _CSS = """
 :root {
   --ink: #14231c; --muted: #5d6f66; --line: #d9e2dc;
   --accent: #0f7a4f; --warn: #b23a2f; --bg: #ffffff; --panel: #f4f8f5;
+  --mark: none;
 }
 * { box-sizing: border-box; }
 body {
@@ -307,9 +308,10 @@ footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid var(--line);
 
 
 def render_html(pack: ProfitPack) -> str:
-    from ..assets.logo import logo_svg
+    from ..assets.logo import logo_svg, watermark_data_uri
 
     _logo = logo_svg(46)
+    _mark = watermark_data_uri()
     period = f"{pack.period_start:%d %b %Y} &ndash; {pack.period_end:%d %b %Y}"
 
     breakdown_html = []
@@ -336,7 +338,23 @@ def render_html(pack: ProfitPack) -> str:
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bookworths Vendor Profit Pack — {pack.business_name}</title>
-<style>{_CSS}</style></head><body>
+<style>{_CSS}
+/* Watermark: a fixed, very faint mark behind the sheet. Printed too, which is
+   the point — a printed Profit Pack should still read as ours. */
+body::before {{
+  content: ""; position: fixed; inset: 0; z-index: 0;
+  background-image: url("{_mark}");
+  background-repeat: no-repeat;
+  background-position: center 46%;
+  background-size: min(58%, 440px);
+  opacity: .04;
+  pointer-events: none;
+}}
+.sheet {{ position: relative; z-index: 1; }}
+@media print {{
+  body::before {{ position: absolute; opacity: .05; }}
+}}
+</style></head><body>
 <div class="sheet">
   <header>
     <div class="brand">{_logo}<h1>Bookworths Vendor Profit Pack</h1></div>

@@ -64,3 +64,34 @@ def favicon_svg() -> str:
     svg = logo_svg(size=64, dark=True)
     encoded = base64.b64encode(svg.encode()).decode()
     return f"data:image/svg+xml;base64,{encoded}"
+
+
+def watermark_svg(colour: str | None = None) -> str:
+    """A flat, single-colour version of the mark for use as a watermark.
+
+    The main logo's gradients would bleed unwanted colour into a background
+    tint, so the watermark is one flat ink at low opacity. Geometry is
+    identical, which is what makes it read as the same mark.
+    """
+    ink = colour or theme.MONEY_IN
+    return (
+        '<svg viewBox="0 0 120 108" xmlns="http://www.w3.org/2000/svg" '
+        'width="120" height="108" aria-hidden="true">'
+        f'<g fill="{ink}">'
+        '<path d="M34 62 V40 l11 -6 V62 Z"/>'
+        '<path d="M50 62 V22 l12 -7 V62 Z"/>'
+        '<path d="M67 62 V34 l11 -6 V62 Z"/>'
+        '<path d="M83 62 V12 l12 -7 V62 Z"/>'
+        '<path d="M58 66 C46 56 30 54 12 57 L4 78 C24 74 44 76 58 86 Z"/>'
+        '<path d="M62 66 C74 56 90 54 108 57 L116 78 C96 74 76 76 62 86 Z"/>'
+        '<path d="M60 88 c-3 0 -5 2 -5 5 h10 c0 -3 -2 -5 -5 -5 Z"/>'
+        '</g></svg>'
+    )
+
+
+def watermark_data_uri(colour: str | None = None) -> str:
+    """The watermark as a CSS-ready data URI."""
+    import base64
+
+    encoded = base64.b64encode(watermark_svg(colour).encode()).decode()
+    return f"data:image/svg+xml;base64,{encoded}"
