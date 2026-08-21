@@ -89,6 +89,58 @@ MPESA_STATEMENT_CSV = dedent(
 )
 
 
-def load_mock_statement() -> pd.DataFrame:
-    """Return the built-in statement as a raw DataFrame (pre-normalization)."""
-    return pd.read_csv(io.StringIO(MPESA_STATEMENT_CSV), dtype=str).fillna("")
+#: The written statement covers one month. The demo spans three, so the
+#: month-by-month comparison is visible without uploading anything — a feature
+#: that only appears on real data is a feature nobody discovers.
+#: The written month runs to the 31st, so every demo month must have 31 days —
+#: shifting into June would produce a 31 June and silently drop two rows.
+_DEMO_MONTHS = (
+    # (label, scale applied to every amount)
+    ("03", 0.78),
+    ("05", 0.91),
+    ("07", 1.00),
+)
+
+
+def _scale_amount(value: str, factor: float) -> str:
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return ""
+    try:
+        return f"{float(text) * factor:.2f}"
+    except ValueError:
+        return value
+
+
+def load_mock_statement(months: int = 1) -> pd.DataFrame:
+    """Return the built-in statement as a raw DataFrame (pre-normalization).
+
+    Defaults to the single written month, so figures stay stable and
+    comparable. The app asks for three (`load_demo_statement`) so that the
+    month-by-month comparison is visible without uploading anything.
+    """
+    base = pd.read_csv(io.StringIO(MPESA_STATEMENT_CSV), dtype=str).fillna("")
+    if months <= 1:
+        return base
+
+    frames = []
+    for index, (month, factor) in enumerate(_DEMO_MONTHS[-months:]):
+        frame = base.copy()
+        frame["Completion Time"] = frame["Completion Time"].str.replace(
+            "2026-07", f"2026-{month}", regex=False
+        )
+        # Receipts must stay unique across months, but a "-FEE" suffix has to
+        # keep pairing with its parent — so suffix the base, not the middle.
+        marker = chr(80 + index)          # P, Q, R
+        frame["Receipt No."] = frame["Receipt No."].str.replace(
+            r"^([A-Z0-9]+?)(-FEE)?$", rf"\g<1>{marker}\g<2>", regex=True
+        )
+        for column in ("Paid In", "Withdrawn"):
+            frame[column] = frame[column].map(lambda v: _scale_amount(v, factor))
+        frames.append(frame)
+    return pd.concat(frames, ignore_index=True)
+
+
+def load_demo_statement() -> pd.DataFrame:
+    """The statement the app's built-in demo uses: three months of activity."""
+    return load_mock_statement(months=3)

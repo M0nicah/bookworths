@@ -195,13 +195,15 @@ def test_whatsapp_all_clear_path():
 # --- end to end ------------------------------------------------------------
 
 def test_pipeline_end_to_end():
+    # The pipeline's default source is the three-month demo, so the app can
+    # show month-by-month comparison without an upload.
     result = run_pipeline(backend_preference="heuristic", db_path=_tmp_db())
-    assert len(result.transactions) == 59
+    assert len(result.transactions) == 59 * 3
     assert result.profit_pack.gross_revenue > ZERO
     assert result.restock_budget.safe_to_spend >= ZERO
     assert result.whatsapp_draft
     df = result.to_dataframe()
-    assert len(df) == 59
+    assert len(df) == 59 * 3
     assert df["account_code"].notna().all()
 
 

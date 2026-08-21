@@ -10,7 +10,7 @@ import pandas as pd
 
 from .engine import CategorizationEngine, EntityMemory
 from .ingest import load_statement_csv, load_statement_pdf, normalize_statement
-from .mockdata import load_mock_statement
+from .mockdata import load_demo_statement
 from .reports.profit_pack import ProfitPack, build_profit_pack, render_html, render_markdown
 from .reports.household import HouseholdReport, build_household_report, render_household_markdown
 from .reports.personal import PersonalReport, build_personal_report, render_personal_markdown
@@ -71,7 +71,7 @@ def run_pipeline(
     pipeline is runnable out of the box.
     """
     if statement_path is None:
-        raw = load_mock_statement()
+        raw = load_demo_statement()
     else:
         path = Path(statement_path)
         raw = (
@@ -142,7 +142,7 @@ def run_personal(
     a business one with different labels, so it does not borrow that machinery.
     """
     if statement_path is None:
-        raw = load_mock_statement()
+        raw = load_demo_statement()
     else:
         path = Path(statement_path)
         raw = (

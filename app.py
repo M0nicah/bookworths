@@ -20,7 +20,7 @@ import streamlit as st
 from app import TAGLINE, __version__
 from app.engine import EntityMemory
 from app.ingest import load_statement_csv, load_statement_pdf, normalize_statement
-from app.mockdata import load_mock_statement
+from app.mockdata import load_demo_statement
 from app.pipeline import BookworthsResult
 from app.engine import CategorizationEngine
 from app.reports.profit_pack import build_profit_pack, kes, render_html, render_markdown
@@ -811,7 +811,7 @@ with st.sidebar:
 
 def _load_raw() -> pd.DataFrame | None:
     if source == "Built-in demo":
-        return load_mock_statement()
+        return load_demo_statement()
     if upload is None:
         return None
     # The parsers take a path, so the upload has to touch disk briefly. Use a
@@ -1052,6 +1052,14 @@ if mode == "Personal":
 
         section("Month by month")
         st.altair_chart(charts.monthly_flow(h.transactions), width="stretch")
+
+        if not personal_trend.is_available:
+            st.caption(
+                "Month-by-month comparison needs more than one month of data. "
+                "This statement covers "
+                f"{personal_trend.rows[0].label if personal_trend.rows else 'one month'} "
+                "only — upload a longer export to compare months."
+            )
 
         section("What this means")
         insight_list(h.insights)
@@ -1361,6 +1369,14 @@ with _b["Profit Pack"]:
 
     with st.expander("Full statement (Markdown)"):
         st.markdown(render_markdown(pack, include_breakdown=False))
+
+    if not business_trend.is_available:
+        st.caption(
+            "Month-by-month comparison needs more than one month of data. "
+            "This statement covers "
+            f"{business_trend.rows[0].label if business_trend.rows else 'one month'} "
+            "only — upload a longer export to compare months."
+        )
 
     st.divider()
     from app.schema import Direction as _Dir2
