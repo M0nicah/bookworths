@@ -81,8 +81,10 @@ def main() -> int:
             print(markdown)
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
-        destination = out / "bookworths_personal_finance.md"
-        destination.write_text(markdown, encoding="utf-8")
+        from app.reports.pdf import personal_report_pdf
+
+        destination = out / "bookworths_personal_finance.pdf"
+        destination.write_bytes(personal_report_pdf(report, args.business))
         _rule("DELIVERABLE WRITTEN")
         print(f"  personal_report      {destination}\n")
         return 0

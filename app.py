@@ -26,6 +26,7 @@ from app.engine import CategorizationEngine
 from app.reports.profit_pack import build_profit_pack, kes, render_html, render_markdown
 from app.assets.logo import favicon_svg, logo_svg
 from app.reports import charts, theme
+from app.reports.pdf import personal_report_pdf, profit_pack_pdf
 from app.reports.people import Counterparty, top_counterparties
 from app.reports.household import build_household_report, render_household_markdown
 from app.reports.personal import build_personal_report, render_personal_markdown
@@ -915,8 +916,9 @@ if mode == "Personal":
         st.caption(f"Showing 12 of {h.transaction_count:,} transactions.")
 
         st.download_button(
-            "Download report", render_household_markdown(h),
-            file_name="bookworths_personal_finance.md", mime="text/markdown",
+            "Download PDF report", personal_report_pdf(h, business),
+            file_name="bookworths_personal_finance.pdf", mime="application/pdf",
+            type="primary",
         )
 
     with ptabs[1]:
@@ -1204,14 +1206,13 @@ with tabs[0]:
     st.divider()
     d1, d2 = st.columns(2)
     d1.download_button(
-        "Download printable HTML", render_html(pack),
-        file_name="bookworths_profit_pack.html", mime="text/html",
-        width="stretch",
+        "Download PDF", profit_pack_pdf(pack, business),
+        file_name="bookworths_profit_pack.pdf", mime="application/pdf",
+        type="primary", width="stretch",
     )
     d2.download_button(
-        "Download Markdown",
-        render_markdown(pack) + "\n\n---\n\n" + render_restock_markdown(budget),
-        file_name="bookworths_profit_pack.md", mime="text/markdown",
+        "Download web page", render_html(pack),
+        file_name="bookworths_profit_pack.html", mime="text/html",
         width="stretch",
     )
 
@@ -1380,9 +1381,8 @@ with tabs[3]:
             insight_list(personal.insights)
 
         st.download_button(
-            "Download report",
-            render_personal_markdown(personal),
-            file_name="bookworths_personal_finance.md", mime="text/markdown",
+            "Download PDF report", profit_pack_pdf(pack, business),
+            file_name="bookworths_profit_pack.pdf", mime="application/pdf",
         )
 
 

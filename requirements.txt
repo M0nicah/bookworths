@@ -8,6 +8,7 @@ openpyxl>=3.1        # .xlsx
 odfpy>=1.4           # .ods  (LibreOffice / Google Sheets exports)
 xlrd>=2.0            # .xls  (legacy Excel)
 pdfplumber>=0.11     # .pdf  (including password-protected Safaricom PDFs)
+reportlab>=4.0       # renders the downloadable PDF reports
 
 # --- Graphical interface ---------------------------------------------------
 streamlit>=1.40      # needs the `width=` API; older versions use use_container_width
@@ -20,4 +21,3 @@ streamlit>=1.40      # needs the `width=` API; older versions use use_container_
 
 # --- Development (optional) ------------------------------------------------
 # pytest>=8.0        # the suite also runs standalone: python test_bookworths.py
-# reportlab>=4.0     # only needed to generate PDF fixtures for testing

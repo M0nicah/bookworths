@@ -665,7 +665,17 @@ def test_written_report_keeps_the_breakdown():
 
     result = run_pipeline(backend_preference="heuristic", db_path=_tmp_db())
     paths = write_outputs(result, Path(tempfile.mkdtemp()))
-    assert "Category breakdown" in paths["profit_pack_md"].read_text()
+    # The HTML lists each account's counterparties under its own heading.
+    html = paths["profit_pack_html"].read_text()
+    assert "Customer Orders" in html and "Logistics" in html
+    # The PDF is the primary deliverable now, so it must exist and carry
+    # the breakdown too — it is what a seller actually keeps.
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(paths["profit_pack_pdf"].read_bytes())) as doc:
+        text = "".join(page.extract_text() or "" for page in doc.pages)
+    assert "CATEGORY BREAKDOWN" in text
+    assert "CUSTOMER ORDERS" in text
 
 
 
@@ -1022,6 +1032,67 @@ def test_tagline_is_consistent_everywhere():
     assert TAGLINE == REPORT_TAGLINE == "Clean books, clear value"
     for name in ("app.py", "main.py", "README.md"):
         assert "real value" not in Path(name).read_text(), name
+
+
+
+# --- PDF output ------------------------------------------------------------
+
+def test_profit_pack_pdf_is_valid_and_complete():
+    from app.reports.pdf import profit_pack_pdf
+
+    pdf = profit_pack_pdf(build_profit_pack(_pack()), "Thrift by Njeri")
+    assert pdf[:4] == b"%PDF"
+    assert len(pdf) > 2000
+
+
+def test_personal_report_pdf_is_valid():
+    from app.pipeline import run_personal
+    from app.reports.pdf import personal_report_pdf
+
+    pdf = personal_report_pdf(run_personal(), "Njeri")
+    assert pdf[:4] == b"%PDF"
+    assert len(pdf) > 2000
+
+
+def test_pdf_figures_match_the_app():
+    """A printed report that disagrees with the screen is worse than none."""
+    import pdfplumber
+
+    from app.reports.pdf import profit_pack_pdf
+
+    pack = build_profit_pack(_pack())
+    buffer = io.BytesIO(profit_pack_pdf(pack, "Test Vendor"))
+    with pdfplumber.open(buffer) as document:
+        text = "".join(page.extract_text() or "" for page in document.pages)
+
+    for value in (pack.gross_revenue, pack.net_profit, pack.owner_drawings):
+        assert f"{value:,.2f}" in text, f"{value} missing from the PDF"
+    assert "Clean books, clear value" in text
+
+
+def test_no_markdown_downloads_remain_in_the_app():
+    """Markdown means nothing to a seller; PDF replaced it."""
+    source = Path("app.py").read_text()
+    assert "text/markdown" not in source
+    assert "application/pdf" in source
+
+
+
+def test_runtime_imports_are_declared_in_requirements():
+    """A dependency the app imports but requirements omits crashes on deploy.
+
+    reportlab shipped commented-out as a test-only extra while app.py had begun
+    importing it for the PDF button.
+    """
+    requirements = Path("requirements.txt").read_text()
+    declared = {
+        line.split(">=")[0].split("==")[0].strip().lower()
+        for line in requirements.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+    for package in ("reportlab", "pandas", "pydantic", "streamlit",
+                    "pdfplumber", "openpyxl", "odfpy"):
+        assert package in declared, f"{package} is imported but not declared"
 
 
 

@@ -114,16 +114,16 @@ def write_outputs(result: BookworthsResult, out_dir: str | Path = "output") -> d
     )
 
     paths = {
-        "profit_pack_md": out / "bookworths_profit_pack.md",
+        "profit_pack_pdf": out / "bookworths_profit_pack.pdf",
         "profit_pack_html": out / "bookworths_profit_pack.html",
         "whatsapp": out / "bookworths_whatsapp_draft.txt",
         "ledger_csv": out / "bookworths_ledger.csv",
-        "personal_md": out / "bookworths_personal_finance.md",
     }
-    paths["personal_md"].write_text(
-        render_personal_markdown(result.personal_report), encoding="utf-8"
+    from .reports.pdf import profit_pack_pdf
+
+    paths["profit_pack_pdf"].write_bytes(
+        profit_pack_pdf(result.profit_pack, result.profit_pack.business_name)
     )
-    paths["profit_pack_md"].write_text(markdown, encoding="utf-8")
     paths["profit_pack_html"].write_text(render_html(result.profit_pack), encoding="utf-8")
     paths["whatsapp"].write_text(result.whatsapp_draft, encoding="utf-8")
     result.to_dataframe().to_csv(paths["ledger_csv"], index=False)
