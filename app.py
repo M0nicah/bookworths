@@ -559,6 +559,49 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
+    with st.expander("Your data & privacy"):
+        multiuser = bool(os.getenv("BOOKWORTHS_MULTIUSER"))
+        llm_on = bool(
+            os.getenv("ANTHROPIC_API_KEY")
+            or os.getenv("ANTHROPIC_AUTH_TOKEN")
+            or os.getenv("OPENAI_API_KEY")
+        )
+        st.markdown(
+            "**Your statement is read, not kept.** It is written to a private "
+            "temporary file only long enough to parse, then overwritten and "
+            "deleted. Reports are offered as downloads and are not stored here."
+        )
+        st.markdown(
+            "**What is remembered:** when you confirm a counterparty, its "
+            "number and name are saved so it is categorised automatically next "
+            "time."
+            + (
+                " Each visitor gets a separate, temporary store."
+                if multiuser
+                else " This runs on your own machine, in `data/bookworths.db`."
+            )
+        )
+        if llm_on:
+            st.warning(
+                "An AI classifier key is configured, so unrecognised "
+                "transactions — counterparty name, number and amount — are "
+                "sent to that provider. Switch the classifier to "
+                "`heuristic` to keep everything on this machine.",
+                icon=None,
+            )
+        else:
+            st.markdown(
+                "**Nothing leaves this machine.** No AI key is configured, so "
+                "the offline classifier is used and no transaction data is "
+                "transmitted anywhere."
+            )
+        st.caption(
+            "Anyone with this app's address can use it — there is no login. "
+            "Do not share the link if you would not share the statement."
+            if multiuser else
+            "Running locally, so only you can reach it."
+        )
+
     st.caption(f"v{__version__}")
 
 
@@ -569,23 +612,28 @@ def _load_raw() -> pd.DataFrame | None:
         return load_mock_statement()
     if upload is None:
         return None
+    # The parsers take a path, so the upload has to touch disk briefly. Use a
+    # private per-request temp file with owner-only permissions, never a shared
+    # name under data/: a fixed name would let two concurrent visitors read
+    # each other's statement, and would survive a crash mid-parse.
     suffix = Path(upload.name).suffix.lower()
-    if suffix == ".pdf":
-        tmp = Path("data") / f"_upload{suffix}"
-        tmp.parent.mkdir(parents=True, exist_ok=True)
-        tmp.write_bytes(upload.getvalue())
-        try:
-            return load_statement_pdf(tmp, password=pdf_password)
-        finally:
-            tmp.unlink(missing_ok=True)
-    # Spill to a temp file and reuse the CLI loader, so the GUI and CLI can
-    # never disagree about what a given format means.
-    tmp = Path("data") / f"_upload{suffix}"
-    tmp.parent.mkdir(parents=True, exist_ok=True)
-    tmp.write_bytes(upload.getvalue())
+    handle, raw_path = tempfile.mkstemp(prefix="bookworths-", suffix=suffix)
+    tmp = Path(raw_path)
     try:
+        with os.fdopen(handle, "wb") as fh:
+            fh.write(upload.getvalue())
+        os.chmod(tmp, 0o600)
+        if suffix == ".pdf":
+            return load_statement_pdf(tmp, password=pdf_password)
         return load_statement_csv(tmp)
     finally:
+        # Overwrite before unlinking so the bytes are not merely dereferenced.
+        try:
+            size = tmp.stat().st_size
+            with open(tmp, "wb") as fh:
+                fh.write(b"\0" * size)
+        except OSError:
+            pass
         tmp.unlink(missing_ok=True)
 
 

@@ -870,6 +870,65 @@ def test_theme_body_text_is_readable_on_its_surfaces():
 
 
 
+# --- privacy ---------------------------------------------------------------
+
+def test_uploads_never_use_a_shared_filename():
+    """Regression: uploads went to a fixed data/_upload.<ext>.
+
+    Two concurrent visitors would have written and read the same path, so one
+    person's statement could be parsed into another person's session.
+    """
+    source = Path("app.py").read_text()
+    assert '"data") / f"_upload' not in source, "upload uses a shared filename"
+    assert "tempfile.mkstemp(" in source, "upload must use a private temp file"
+    assert "os.chmod(tmp, 0o600)" in source, "upload temp file must be owner-only"
+
+
+def test_upload_temp_file_is_removed_and_overwritten():
+    """The bytes must be overwritten, not merely unlinked."""
+    source = Path("app.py").read_text()
+    loader = source[source.index("def _load_raw("): source.index("def _run(")]
+    assert "unlink(missing_ok=True)" in loader
+    assert 'b"\\0" * size' in loader, "temp file contents must be overwritten"
+
+
+def test_no_outbound_network_calls_in_the_pipeline():
+    """Only the optional LLM backend may talk to the network."""
+    import pathlib as _p
+
+    for path in _p.Path("app").rglob("*.py"):
+        if path.name == "llm.py":
+            continue  # the documented exception
+        text = path.read_text()
+        for banned in ("import requests", "import httpx", "urllib.request"):
+            assert banned not in text, f"{path} makes network calls"
+
+
+def test_offline_backend_transmits_nothing():
+    """With no key configured the classifier must stay on-machine."""
+    import os
+
+    from app.engine.llm import HeuristicBackend, build_backend
+
+    saved = {k: os.environ.pop(k, None) for k in
+             ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY")}
+    try:
+        assert isinstance(build_backend("auto"), HeuristicBackend)
+    finally:
+        for key, value in saved.items():
+            if value is not None:
+                os.environ[key] = value
+
+
+def test_privacy_disclosure_is_shown_in_the_app():
+    """A tester must be able to see what happens to their data."""
+    source = Path("app.py").read_text()
+    assert "Your data & privacy" in source
+    # It must state the AI case, which is the only route data leaves the machine.
+    assert "sent to that provider" in source
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 

@@ -37,10 +37,34 @@ What the deployed app does and does not do:
 
 | | |
 |---|---|
-| Uploaded statements | Held in memory for the session, never written to disk |
-| Learned counterparties | Per-session temp file, discarded when the session ends |
+| Uploaded statements | Written to a private `0600` temp file only while parsing, then overwritten with zeros and deleted |
+| Statement contents | Held in server memory for the session; cleared when the session ends |
+| Learned counterparties | Phone/till numbers and names of counterparties **you confirm**, in a per-session temp database |
 | Generated reports | Offered as downloads; not stored server-side |
+| Outbound network calls | **None**, unless an AI classifier key is configured (see below) |
 | Access control | **None** — anyone with the URL can use the app |
+| Server logs | Streamlit logs requests, not statement contents |
+
+### The one case where data leaves the server
+
+If `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` is set, transactions that Layers 1–2
+cannot resolve are sent to that provider for classification — including the
+**counterparty name, phone/till number, amount and date**. Typically a handful
+of rows per statement, but it is real financial data going to a third party.
+
+**No key is configured by default, so this is off.** The offline classifier
+handles everything on the server. Only add a key if you accept that trade-off,
+and tell your testers if you do. The in-app "Your data & privacy" panel reports
+which mode is active.
+
+### What this does not protect against
+
+- Anyone with the URL can open the app and upload a statement.
+- The host (Streamlit) can see traffic and could see memory contents.
+- A statement in server memory is readable by anyone with server access.
+- Nothing is encrypted at rest beyond the filesystem's own protections.
+
+For anything beyond demoing your own data, add authentication first.
 
 To gate access, add a password check at the top of `app.py` using
 `st.secrets["password"]`, or move to a host that supports real authentication.
