@@ -26,6 +26,23 @@ from app.engine import CategorizationEngine
 from app.reports.profit_pack import build_profit_pack, kes, render_html, render_markdown
 from app.assets.logo import favicon_svg, logo_svg, watermark_data_uri
 from app.reports import charts, theme
+
+# Streamlit hot-reloads app.py but keeps already-imported submodules in memory,
+# so editing app/ and refreshing serves stale code and fails with a confusing
+# AttributeError. Detect that and say what to do about it.
+_REQUIRED_CHART_FUNCS = ("trend_lines", "trend_net_bars", "category_bars",
+                         "in_out_bars", "profit_waterfall", "balance_line",
+                         "monthly_flow", "essential_split")
+_missing = [n for n in _REQUIRED_CHART_FUNCS if not hasattr(charts, n)]
+if _missing:
+    st.error(
+        "**This server is running an older version of the code.**\n\n"
+        f"Missing: `{'`, `'.join(_missing)}`\n\n"
+        "Stop the server (Ctrl+C in the terminal) and run "
+        "`streamlit run app.py` again. Refreshing the browser is not enough — "
+        "Streamlit keeps already-imported modules in memory."
+    )
+    st.stop()
 from app.reports.pdf import personal_report_pdf, profit_pack_pdf
 from app.reports.trends import build_business_trend, build_personal_trend
 from app.reports.people import Counterparty, top_counterparties

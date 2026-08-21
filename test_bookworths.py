@@ -1355,6 +1355,35 @@ def test_personal_pdf_handles_a_missing_name():
 
 
 
+def test_chart_functions_the_app_calls_all_exist():
+    """Every charts.* the app calls must exist, or a tab dies at runtime.
+
+    app.py is a script, so a missing chart function only surfaces when a user
+    opens the tab that draws it.
+    """
+    import re
+
+    from app.reports import charts
+
+    source = Path("app.py").read_text()
+    called = set(re.findall(r"charts\.([a-z_]+)\(", source))
+    assert called, "no chart calls found — did the module alias change?"
+    for name in sorted(called):
+        assert hasattr(charts, name), f"app.py calls charts.{name}() which does not exist"
+
+
+def test_stale_module_guard_lists_the_charts_it_needs():
+    """The guard must cover the functions the app actually calls."""
+    import re
+
+    source = Path("app.py").read_text()
+    guard = source[source.index("_REQUIRED_CHART_FUNCS"): source.index("_missing = [")]
+    called = set(re.findall(r"charts\.([a-z_]+)\(", source))
+    for name in called:
+        assert name in guard, f"{name} is called but not covered by the guard"
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 
