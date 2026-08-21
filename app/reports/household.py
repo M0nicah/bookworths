@@ -336,7 +336,7 @@ def render_household_markdown(r: HouseholdReport) -> str:
     verdict = "SURPLUS" if r.net_position >= ZERO else "SHORTFALL"
     lines = [
         "# PERSONAL FINANCE REPORT",
-        "### _Clear books, real value_",
+        "### _Clean books, clear value_",
         "",
         f"**Period:** {r.period_start:%d %b %Y} — {r.period_end:%d %b %Y} "
         f"({r.months} month(s))  ",
@@ -399,5 +399,5 @@ def render_household_markdown(r: HouseholdReport) -> str:
         "",
     ]
     lines += [f"- {insight}" for insight in r.insights]
-    lines += ["", "---", "", "_Bookworths — clear books, real value._"]
+    lines += ["", "---", "", "_Bookworths — clean books, clear value._"]
     return "\n".join(lines)

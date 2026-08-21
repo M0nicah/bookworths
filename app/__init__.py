@@ -1,10 +1,10 @@
-"""Bookworths — clear books, real value.
+"""Bookworths — clean books, clear value.
 
 Financial reconciliation and profit intelligence for Kenyan Instagram and
 social-commerce sellers.
 """
 __version__ = "1.0.0"
-TAGLINE = "Clear books, real value"
+TAGLINE = "Clean books, clear value"
 
 from .schema import Account, Classification, ClassifiedTransaction, Direction, Transaction
 

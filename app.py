@@ -24,6 +24,7 @@ from app.mockdata import load_mock_statement
 from app.pipeline import BookworthsResult
 from app.engine import CategorizationEngine
 from app.reports.profit_pack import build_profit_pack, kes, render_html, render_markdown
+from app.assets.logo import favicon_svg, logo_svg
 from app.reports import charts, theme
 from app.reports.people import Counterparty, top_counterparties
 from app.reports.household import build_household_report, render_household_markdown
@@ -87,8 +88,8 @@ QUICK_ANSWERS: list[tuple[str, str, Account]] = [
 ]
 
 st.set_page_config(
-    page_title="Bookworths — Clear books, real value",
-    page_icon="B",
+    page_title="Bookworths — Clean books, clear value",
+    page_icon=favicon_svg(),
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -212,8 +213,19 @@ st.html(
   }}
   section[data-testid="stSidebar"] svg {{ fill: {theme.PAGE}; }}
 
+  .bw-side-brand {{ display: flex; align-items: center; gap: 11px;
+                    padding-bottom: 16px; margin-bottom: 4px;
+                    border-bottom: 1px solid var(--sidebar-rule); }}
+  .bw-side-brand .n {{ font-family: var(--serif); font-size: 21px;
+                       color: {theme.PAGE}; line-height: 1.1; }}
+  .bw-side-brand .s {{ font-size: 10px; letter-spacing: .09em;
+                       text-transform: uppercase; color: var(--sidebar-muted);
+                       margin-top: 2px; }}
+
   /* Masthead ---------------------------------------------------------- */
   .bw-head {{ margin: 0 0 22px; }}
+  .bw-brand {{ display: flex; align-items: center; gap: 14px; }}
+  .bw-brand svg {{ flex: none; }}
   .bw-head h1 {{ font-family: var(--serif); font-size: 40px; margin: 0;
                  color: var(--ink); }}
   .bw-head .tag {{ font-size: 14px; color: var(--ink-2); margin-top: 6px; }}
@@ -522,6 +534,11 @@ def insight_list(items) -> None:
 
 
 with st.sidebar:
+    st.html(
+        f"""<div class="bw-side-brand">{logo_svg(38, dark=True)}
+          <div><div class="n">Bookworths</div>
+          <div class="s">M-Pesa bookkeeping</div></div></div>"""
+    )
     st.subheader("What are you analysing?")
     mode = st.radio(
         "Mode",
@@ -691,8 +708,13 @@ def _run_personal():
 
 st.html(
     f"""<div class="bw-head">
-      <h1>Bookworths</h1>
-      <div class="tag">{TAGLINE}</div>
+      <div class="bw-brand">
+        {logo_svg(56)}
+        <div>
+          <h1>Bookworths</h1>
+          <div class="tag">{TAGLINE}</div>
+        </div>
+      </div>
       <div class="mode">{mode} mode &middot; all amounts in KES</div>
     </div>"""
 )

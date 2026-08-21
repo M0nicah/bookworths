@@ -13,7 +13,7 @@ from typing import Iterable, Sequence
 
 from ..schema import Account, ClassifiedTransaction
 
-TAGLINE = "Clear books, real value"
+TAGLINE = "Clean books, clear value"
 ZERO = Decimal("0")
 
 
@@ -307,6 +307,9 @@ footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid var(--line);
 
 
 def render_html(pack: ProfitPack) -> str:
+    from ..assets.logo import logo_svg
+
+    _logo = logo_svg(46)
     period = f"{pack.period_start:%d %b %Y} &ndash; {pack.period_end:%d %b %Y}"
 
     breakdown_html = []
@@ -336,7 +339,7 @@ def render_html(pack: ProfitPack) -> str:
 <style>{_CSS}</style></head><body>
 <div class="sheet">
   <header>
-    <h1>Bookworths Vendor Profit Pack</h1>
+    <div class="brand">{_logo}<h1>Bookworths Vendor Profit Pack</h1></div>
     <div class="tagline">{TAGLINE}</div>
     <div class="meta">
       <strong>{pack.business_name}</strong> &middot; {period} &middot;

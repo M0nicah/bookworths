@@ -183,7 +183,7 @@ def test_whatsapp_draft_caps_questions():
     draft = build_whatsapp_draft(_pack(), seller_name="Thrift by Njeri", max_questions=5)
     assert "Njeri" in draft
     assert draft.count("\n*") <= 5
-    assert "clear books, real value" in draft.lower()
+    assert "clean books, clear value" in draft.lower()
 
 
 def test_whatsapp_all_clear_path():
@@ -214,7 +214,7 @@ def test_pipeline_writes_all_deliverables():
     for path in paths.values():
         assert path.exists() and path.stat().st_size > 0
     html = paths["profit_pack_html"].read_text()
-    assert "Clear books, real value" in html
+    assert "Clean books, clear value" in html
     assert "<table" in html
 
 
@@ -979,6 +979,49 @@ def test_two_sessions_get_separate_databases():
         assert all("bookworths-" in p for p in paths)
     finally:
         os.environ.pop("BOOKWORTHS_MULTIUSER", None)
+
+
+
+# --- brand -----------------------------------------------------------------
+
+def test_logo_renders_for_both_backgrounds():
+    from app.assets.logo import favicon_svg, logo_svg
+
+    for dark in (False, True):
+        svg = logo_svg(44, dark=dark)
+        assert svg.lstrip().startswith("<svg")
+        assert "</svg>" in svg
+        assert 'role="img"' in svg and "aria-label" in svg
+    # The two variants must actually differ, or the sidebar mark is invisible.
+    assert logo_svg(44) != logo_svg(44, dark=True)
+    assert favicon_svg().startswith("data:image/svg+xml;base64,")
+
+
+def test_logo_carries_no_background_rectangle():
+    """A baked-in background would show as a block on the cream page."""
+    from app.assets.logo import logo_svg
+
+    svg = logo_svg(44)
+    assert "<rect" not in svg, "the mark must be transparent"
+
+
+def test_printable_report_embeds_the_logo_inline():
+    """The report is downloaded and printed, so nothing may be fetched."""
+    from app.reports.profit_pack import render_html
+
+    html = render_html(build_profit_pack(_pack()))
+    assert "<svg" in html
+    assert "src=" not in html, "the report must stay self-contained"
+
+
+def test_tagline_is_consistent_everywhere():
+    """The wordmark and the product must not disagree."""
+    from app import TAGLINE
+    from app.reports.profit_pack import TAGLINE as REPORT_TAGLINE
+
+    assert TAGLINE == REPORT_TAGLINE == "Clean books, clear value"
+    for name in ("app.py", "main.py", "README.md"):
+        assert "real value" not in Path(name).read_text(), name
 
 
 

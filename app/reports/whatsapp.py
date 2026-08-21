@@ -66,7 +66,7 @@ def build_whatsapp_draft(
             "Your books are done for this period — every transaction was matched "
             "automatically, nothing needs your input. 🎉\n\n"
             "Your Profit Pack is attached.\n\n"
-            "_Bookworths — clear books, real value._"
+            "_Bookworths — clean books, clear value._"
         )
 
     total = sum((r.transaction.gross_amount for r in shortlist), Decimal("0"))
@@ -109,6 +109,6 @@ def build_whatsapp_draft(
         "",
         "Takes 30 seconds and your Profit Pack is final ✅",
         "",
-        "_Bookworths — clear books, real value._",
+        "_Bookworths — clean books, clear value._",
     ]
     return "\n".join(lines)

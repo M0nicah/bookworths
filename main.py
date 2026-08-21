@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bookworths — clear books, real value.
+"""Bookworths — clean books, clear value.
 
 Run the complete pipeline against the built-in mock M-Pesa statement:
 

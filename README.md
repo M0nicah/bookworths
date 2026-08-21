@@ -1,6 +1,6 @@
 # Bookworths
 
-### _Clear books, real value_
+### _Clean books, clear value_
 
 Financial reconciliation and profit intelligence for Kenyan Instagram and
 social-commerce sellers — thrift/apparel, bedding, footwear, home decor.
