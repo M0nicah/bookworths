@@ -783,7 +783,8 @@ def test_app_has_no_undefined_names():
     import builtins
 
     tree = ast.parse(Path("app.py").read_text())
-    defined = set(dir(builtins))
+    # Module-level names Python injects that are not builtins.
+    defined = set(dir(builtins)) | {"__file__", "__name__", "__doc__"}
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             defined.add(node.name)
@@ -926,6 +927,58 @@ def test_privacy_disclosure_is_shown_in_the_app():
     assert "Your data & privacy" in source
     # It must state the AI case, which is the only route data leaves the machine.
     assert "sent to that provider" in source
+
+
+
+def test_hosted_environments_isolate_by_default():
+    """Privacy must not depend on remembering to set a secret."""
+    import os
+
+    source = Path("app.py").read_text()
+    namespace = {"os": os, "Path": Path, "__file__": "app.py"}
+    exec(source[source.index("def _is_hosted"): source.index("def _db_path")], namespace)
+    is_hosted = namespace["_is_hosted"]
+
+    keys = ["BOOKWORTHS_MULTIUSER", "SPACE_ID", "RENDER", "DYNO",
+            "STREAMLIT_SHARING_MODE", "FLY_APP_NAME", "K_SERVICE",
+            "RAILWAY_ENVIRONMENT", "STREAMLIT_SERVER_ADDRESS"]
+    saved = {k: os.environ.pop(k, None) for k in keys}
+    try:
+        assert is_hosted() is False, "a plain local run must share one database"
+        for marker in ("BOOKWORTHS_MULTIUSER", "SPACE_ID", "RENDER",
+                       "STREAMLIT_SHARING_MODE", "DYNO"):
+            os.environ[marker] = "1"
+            assert is_hosted() is True, f"{marker} must force isolation"
+            del os.environ[marker]
+    finally:
+        for key, value in saved.items():
+            if value is not None:
+                os.environ[key] = value
+
+
+def test_two_sessions_get_separate_databases():
+    """The isolation claim, exercised through real Streamlit sessions."""
+    import os
+
+    from streamlit.testing.v1 import AppTest
+
+    source = Path("app.py").read_text()
+    snippet = (
+        "import os, tempfile, uuid\nfrom pathlib import Path\nimport streamlit as st\n"
+        + source[source.index("def _is_hosted"): source.index("DB_PATH = _db_path()")]
+        + "DB_PATH = _db_path()\nst.text(DB_PATH)\n"
+    )
+    os.environ["BOOKWORTHS_MULTIUSER"] = "1"
+    try:
+        paths = []
+        for _ in range(2):
+            harness = AppTest.from_string(snippet)
+            harness.run(timeout=30)
+            paths.append(harness.text[0].value)
+        assert paths[0] != paths[1], "two sessions shared one database"
+        assert all("bookworths-" in p for p in paths)
+    finally:
+        os.environ.pop("BOOKWORTHS_MULTIUSER", None)
 
 
 

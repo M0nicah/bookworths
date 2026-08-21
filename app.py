@@ -32,16 +32,40 @@ from app.reports.restock import calculate_restock_budget, render_restock_markdow
 from app.reports.whatsapp import build_whatsapp_draft
 from app.schema import Account
 
+def _is_hosted() -> bool:
+    """True when this process is serving people other than its operator.
+
+    Isolation must not depend on the operator remembering a secret. Detect the
+    common hosts directly, so a forgotten BOOKWORTHS_MULTIUSER cannot silently
+    pool several people's counterparties into one shared database.
+    """
+    if os.getenv("BOOKWORTHS_MULTIUSER"):
+        return True
+    hosted_markers = (
+        "STREAMLIT_SHARING_MODE",   # Streamlit Community Cloud
+        "STREAMLIT_SERVER_ADDRESS",
+        "SPACE_ID",                 # Hugging Face Spaces
+        "RENDER",                   # Render
+        "RAILWAY_ENVIRONMENT",      # Railway
+        "FLY_APP_NAME",             # Fly.io
+        "DYNO",                     # Heroku
+        "K_SERVICE",                # Cloud Run
+    )
+    if any(os.getenv(marker) for marker in hosted_markers):
+        return True
+    # Streamlit Cloud checks out the repo under /mount/src.
+    return Path(__file__).resolve().as_posix().startswith("/mount/src")
+
+
 def _db_path() -> str:
     """Where this visitor's learned counterparty memory lives.
 
-    Locally that is a single shared file, which is what you want: the app gets
-    smarter every run. Deployed, every visitor gets their own file keyed to
-    their session, so one person's confirmed suppliers never leak into another
-    person's categorisations. Sessions are ephemeral by design — a deployed
-    demo should not accumulate strangers' financial relationships on disk.
+    On your own machine that is a single shared file, which is the point: the
+    app gets smarter every run. Anywhere that serves other people, each visitor
+    gets their own file keyed to their session, so one person's confirmed
+    counterparties never reach another person's categorisations.
     """
-    if not os.getenv("BOOKWORTHS_MULTIUSER"):
+    if not _is_hosted():
         return "data/bookworths.db"
     if "db_path" not in st.session_state:
         st.session_state["db_path"] = (
@@ -560,7 +584,7 @@ with st.sidebar:
 
     st.divider()
     with st.expander("Your data & privacy"):
-        multiuser = bool(os.getenv("BOOKWORTHS_MULTIUSER"))
+        multiuser = _is_hosted()
         llm_on = bool(
             os.getenv("ANTHROPIC_API_KEY")
             or os.getenv("ANTHROPIC_AUTH_TOKEN")
