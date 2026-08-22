@@ -481,7 +481,7 @@ def breakdown_card(label: str, items) -> str:
     """One account's top counterparties as a compact colour-headed card."""
     accent = theme.hue_for(label)
     rows = "".join(
-        f'<tr><td>{name}</td><td class="n">{amount:,.0f}</td></tr>'
+        f'<tr><td>{name}</td><td class="n">KES {amount:,.0f}</td></tr>'
         for name, amount in items
     )
     return (
@@ -653,11 +653,14 @@ def render_trend(trend) -> None:
             for r in trend.rows
         ])
     st.dataframe(table, width="stretch", hide_index=True)
+    # Every column here is money, so name the unit once rather than on each.
     if is_business:
         st.caption(
-            "Kept = net profit less what you took out. It is the money that "
-            "stayed in the business to buy next month's stock."
+            "All amounts in KES. Kept = net profit less what you took out — "
+            "the money that stayed in the business to buy next month's stock."
         )
+    else:
+        st.caption("All amounts in KES.")
 
 
 def insight_list(items) -> None:
@@ -1135,7 +1138,7 @@ if mode == "Personal":
             section("Detail")
             st.dataframe(
                 pd.DataFrame([
-                    {"Source": l.label, "Amount": f"{l.amount:,.0f}",
+                    {"Source": l.label, "Amount (KES)": f"{l.amount:,.0f}",
                      "Share": f"{l.share_pct}%", "Items": l.count}
                     for l in h.income_lines
                 ]), width="stretch", hide_index=True, height=360,
@@ -1163,7 +1166,7 @@ if mode == "Personal":
             section("Detail")
             st.dataframe(
                 pd.DataFrame([
-                    {"Category": l.label, "Amount": f"{l.amount:,.0f}",
+                    {"Category": l.label, "Amount (KES)": f"{l.amount:,.0f}",
                      "Share": f"{l.share_pct}%", "Items": l.count,
                      "Essential": "Yes" if l.essential else "No"}
                     for l in h.spend_lines
@@ -1518,13 +1521,13 @@ with _b["Restock budget"]:
         section("How it is calculated")
         st.dataframe(
             pd.DataFrame([
-                {"Line": "Cash in M-Pesa", "Amount": f"{budget.cash_on_hand:,.0f}"},
-                {"Line": "Less: CBD shelf rent due", "Amount": f"-{budget.shelf_rent_due:,.0f}"},
-                {"Line": "Less: rider balances", "Amount": f"-{budget.rider_balance_due:,.0f}"},
-                {"Line": "Less: owner draw reserve", "Amount": f"-{budget.owner_draw_reserve:,.0f}"},
-                {"Line": "Less: operating buffer", "Amount": f"-{budget.operating_buffer:,.0f}"},
-                {"Line": "Less: unconfirmed items", "Amount": f"-{budget.unresolved_holdback:,.0f}"},
-                {"Line": "Safe to spend", "Amount": f"{budget.safe_to_spend:,.0f}"},
+                {"Line": "Cash in M-Pesa", "Amount (KES)": f"{budget.cash_on_hand:,.0f}"},
+                {"Line": "Less: CBD shelf rent due", "Amount (KES)": f"-{budget.shelf_rent_due:,.0f}"},
+                {"Line": "Less: rider balances", "Amount (KES)": f"-{budget.rider_balance_due:,.0f}"},
+                {"Line": "Less: owner draw reserve", "Amount (KES)": f"-{budget.owner_draw_reserve:,.0f}"},
+                {"Line": "Less: operating buffer", "Amount (KES)": f"-{budget.operating_buffer:,.0f}"},
+                {"Line": "Less: unconfirmed items", "Amount (KES)": f"-{budget.unresolved_holdback:,.0f}"},
+                {"Line": "Safe to spend", "Amount (KES)": f"{budget.safe_to_spend:,.0f}"},
             ]), width="stretch", hide_index=True, height=290,
         )
 
@@ -1568,7 +1571,7 @@ with _b["My personal finances"]:
                 pd.DataFrame([
                     {
                         "Category": l.category.value,
-                        "Amount": f"{l.amount:,.0f}",
+                        "Amount (KES)": f"{l.amount:,.0f}",
                         "Share": f"{l.share_pct}%",
                         "Items": l.count,
                         "Essential": "Yes" if l.category.is_essential else "No",

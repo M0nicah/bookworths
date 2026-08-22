@@ -184,7 +184,7 @@ def profit_pack_pdf(pack, business_name: str = "") -> bytes:
                 ("TOPPADDING", (0, 0), (-1, -1), 5),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
             ]))
-            rows = [[name, f"{amount:,.2f}"] for name, amount in items]
+            rows = [[name, f"KES {amount:,.2f}"] for name, amount in items]
             story.append(KeepTogether([head, _figure_table(rows), Spacer(1, 9)]))
 
     story.append(Spacer(1, 14))

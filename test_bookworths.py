@@ -1456,6 +1456,35 @@ def test_business_trend_charts_render():
 
 
 
+def test_category_breakdown_shows_the_currency():
+    """A column of bare numbers does not say what it is measuring."""
+    import io as _io
+
+    import pdfplumber
+
+    from app.reports.pdf import profit_pack_pdf
+
+    source = Path("app.py").read_text()
+    assert 'KES {amount:,.0f}' in source, "breakdown cards must show KES"
+
+    pack = build_profit_pack(_pack())
+    with pdfplumber.open(_io.BytesIO(profit_pack_pdf(pack, "Test"))) as document:
+        text = "".join(page.extract_text() or "" for page in document.pages)
+    breakdown = text[text.index("CATEGORY BREAKDOWN"):]
+    assert "KES" in breakdown, "PDF breakdown must show KES"
+
+
+def test_money_columns_name_their_unit():
+    """Every amount column is either labelled KES or sits under a caption."""
+    source = Path("app.py").read_text()
+    assert '"Amount": f"' not in source, (
+        'an "Amount" column is unlabelled — use "Amount (KES)"'
+    )
+    # The trend tables are all-money, so a caption carries the unit instead.
+    assert "All amounts in KES" in source
+
+
+
 if __name__ == "__main__":
     import sys, traceback
 
